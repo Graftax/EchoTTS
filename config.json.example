@@ -1,0 +1,22 @@
+{
+	"discordToken": "[Discord API Token Here]",
+	"googleCloudKey": "[Google Cloud API Key With Text-To-Speech Access Here]",
+	"audioCodec": "MP3",
+	"languages": [
+		"en-AU",
+		"en-IN",
+		"en-GB",
+		"en-US",
+		"fr-CA",
+		"fr-FR",
+		"de-DE",
+		"hi-IN",
+		"it-IT",
+		"ja-JP",
+		"ko-KR",
+		"cmn-CN",
+		"nb-NO",
+		"ru-RU",
+		"es-ES"
+	]
+}
