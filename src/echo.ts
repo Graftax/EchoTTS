@@ -158,6 +158,21 @@ g_Client.on('message', message => {
 
 });
 
+// Emitted whenever a member changes voice state - e.g. joins/leaves a channel, mutes/unmutes.
+g_Client.on('voiceStateUpdate', (oldState, newState) => {
+	g_Client.voice.connections.forEach(connection => {
+		// user left a channel
+		if (newState.channel === null) {
+			// but the bot is using that channel
+			if (oldState.channel.equals(connection.channel)) {
+				if (connection.channel.members.size == 1) {
+					connection.disconnect();
+				}
+			}
+		}
+	})
+});
+
 // Start the client
 // =============================================================================
 g_Client.login(discordToken);
