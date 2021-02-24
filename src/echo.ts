@@ -1,4 +1,6 @@
 const { discordToken, googleCloudKey, audioCodec, languages } = require('../config.json');
+const sortedLanguages = [...languages].sort();
+
 const { Readable } = require('stream');
 const https = require('https');
 const Discord = require('discord.js');
@@ -69,10 +71,9 @@ g_Commander.registerCommand("language", (args, cabinet, reply) => {
 	if(args.length < 1) {
 
 		let langOptions = "Options:\n";
-		languages.forEach((lang) => {
+		sortedLanguages.forEach((lang) => {
 			langOptions += `\t${lang}\n`;
 		});
-		langOptions.sort();                                                                                                         
 
 		reply(`That command lets you change your voice language.\n${langOptions}Example: !language en-US`);
 		return;
@@ -158,6 +159,30 @@ g_Client.on('message', message => {
 
 });
 
+g_Client.on('voiceStateUpdate', (oldState, newState) => {
+
+	// If the user was not in a channel before, do nothing.
+	if(!oldState.channel)
+		return;
+
+	// If the user stayed in the same channel, do nothing.
+	if(newState.channel && oldState.channel.id == newState.channel.id)
+		return;
+
+	let connection = g_Client.voice.connections.find((connection) => {
+		return connection.channel.id == oldState.channel.id;
+	});
+
+	if(!connection)
+		return;
+	
+	// We are connected, and there is only 1 user left, so it must be us. Lets
+	// leave since there is no point in hanging around an empty channel.
+	if(connection.channel.members.size == 1)
+		connection.disconnect();
+
+});
+
 // Start the client
 // =============================================================================
 g_Client.login(discordToken);
@@ -177,6 +202,9 @@ function updatePresence() {
 
 function checkMentionsAndJoin(message, reply) {
 
+	if(message.mentions.everyone)
+		return false;
+	
 	if(!message.mentions.has(g_Client.user))
 		return false;
 
