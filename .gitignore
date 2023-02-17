@@ -1,4 +1,4 @@
-built/
+dist/
 node_modules/
 config.json
 users-db.json
