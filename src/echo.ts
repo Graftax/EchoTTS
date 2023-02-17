@@ -1,5 +1,9 @@
-const { discordToken, googleCloudKey, audioCodec, languages } = require('../config.json');
-const sortedLanguages = [...languages].sort();
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config();
+}
+
+const rawLanguages = JSON.parse(process.env.languages) as Array<string>;
+const languages = [...rawLanguages].sort();
 
 const { Readable } = require('stream');
 const https = require('https');
@@ -71,7 +75,7 @@ g_Commander.registerCommand("language", (args, cabinet, reply) => {
 	if(args.length < 1) {
 
 		let langOptions = "Options:\n";
-		sortedLanguages.forEach((lang) => {
+		languages.forEach((lang) => {
 			langOptions += `\t${lang}\n`;
 		});
 
@@ -185,7 +189,7 @@ g_Client.on('voiceStateUpdate', (oldState, newState) => {
 
 // Start the client
 // =============================================================================
-g_Client.login(discordToken);
+g_Client.login(process.env.discordToken);
 
 // Utility Functions
 // =============================================================================
@@ -278,7 +282,7 @@ function speakOnConnectionWave(params, onFinish, onError) {
 			"ssmlGender": params.gender
 		},
 		"audioConfig": {
-			"audioEncoding": audioCodec
+			"audioEncoding": process.env.audioCodec
 		}
 	};
 
@@ -286,7 +290,7 @@ function speakOnConnectionWave(params, onFinish, onError) {
 
 	const options = {
 		hostname: 'texttospeech.googleapis.com',
-		path: `/v1beta1/text:synthesize?key=${googleCloudKey}`,
+		path: `/v1beta1/text:synthesize?key=${process.env.googleCloudKey}`,
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json'
