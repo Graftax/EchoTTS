@@ -2,7 +2,7 @@ if (process.env.NODE_ENV !== 'production') {
   require('dotenv').config();
 }
 
-const rawLanguages = JSON.parse(process.env.languages) as Array<string>;
+const rawLanguages = JSON.parse(process.env.LANGUAGES) as Array<string>;
 const languages = [...rawLanguages].sort();
 
 const { Readable } = require('stream');
@@ -189,7 +189,7 @@ g_Client.on('voiceStateUpdate', (oldState, newState) => {
 
 // Start the client
 // =============================================================================
-g_Client.login(process.env.discordToken);
+g_Client.login(process.env.DISCORD_TOKEN);
 
 // Utility Functions
 // =============================================================================
@@ -282,7 +282,7 @@ function speakOnConnectionWave(params, onFinish, onError) {
 			"ssmlGender": params.gender
 		},
 		"audioConfig": {
-			"audioEncoding": process.env.audioCodec
+			"audioEncoding": process.env.AUDIO_CODEC
 		}
 	};
 
@@ -290,7 +290,7 @@ function speakOnConnectionWave(params, onFinish, onError) {
 
 	const options = {
 		hostname: 'texttospeech.googleapis.com',
-		path: `/v1beta1/text:synthesize?key=${process.env.googleCloudKey}`,
+		path: `/v1beta1/text:synthesize?key=${process.env.GOOGLE_CLOUD_KEY}`,
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json'
