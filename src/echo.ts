@@ -1,22 +1,42 @@
+import dotenv from 'dotenv';
 if (process.env.NODE_ENV !== 'production') {
-  require('dotenv').config();
+  dotenv.config();
 }
 
 const rawLanguages = JSON.parse(process.env.LANGUAGES) as Array<string>;
 const languages = [...rawLanguages].sort();
 
-const { Readable } = require('stream');
-const https = require('https');
-const Discord = require('discord.js');
-import Commander from './Commander';
-import DataStorage from './DataStorage';
-import MultiQueueProcessor from './MultiQueueProcessor';
+import { request } from 'https';
+import { Readable } from 'stream';
+import { Client, Events, User, Message, ActivityType, VoiceState, GatewayIntentBits, ChannelType } from 'discord.js';
+
+import * as DSVoice from '@discordjs/voice';
+import Commander from './Commander.js';
+import DataStorage from './DataStorage.js';
+import MultiQueueProcessor from './MultiQueueProcessor.js';
+import { createDiscordJSAdapter } from './adapter.js';
+
+interface QueueItem {
+	connection: DSVoice.VoiceConnection,
+	text: string,
+	language: string,
+	gender: string
+}
+
 
 // Construct Core Classes
 // =============================================================================
 const g_Commander = new Commander();
-const g_Client = new Discord.Client();
-const g_QProcessor = new MultiQueueProcessor(onProcessNextSpeak);
+const g_Client = new Client({
+	intents: [
+		GatewayIntentBits.Guilds, 
+		GatewayIntentBits.GuildMessages,
+		GatewayIntentBits.GuildVoiceStates,
+		GatewayIntentBits.DirectMessages
+	]
+});
+
+const g_QProcessor = new MultiQueueProcessor<QueueItem>(onProcessNextSpeak);
 const g_Storage = new DataStorage("users-db.json", 1);
 g_Storage.setDefaults({
 	"gender": "FEMALE",
@@ -97,32 +117,34 @@ g_Commander.registerCommand("language", (args, cabinet, reply) => {
 
 });
 
-g_Commander.registerCommand("shutup", (args, cabinet, reply) => {
+g_Commander.registerCommand("shutup", async (args, cabinet, reply) => {
 
-	let currConnection = findConnectionForAuthor(cabinet.author);
+	let currConnection = await findConnectionForAuthor(cabinet.author);
 
 	if(!currConnection) {
 		reply("I don't see you in any voice channels I'm in.");
 		return;
 	}
 
-	g_QProcessor.clearQueue(currConnection.channel.id);
+	g_QProcessor.clearQueue(currConnection.joinConfig.channelId);
 
 	queueNewSpeak(currConnection, `${cabinet.author.username} told me to shut up.`,
-		g_Storage.get(cabinet.author.id, "language"),
-		g_Storage.get(cabinet.author.id, "gender"), 
+		g_Storage.get(cabinet.author.id, "language") as string,
+		g_Storage.get(cabinet.author.id, "gender") as string, 
 		(err) => { reply("An error has occured, make sure Graftax sees this: " + err.message); 
 	});
 
 });
 
+const player = DSVoice.createAudioPlayer();
+
 // Client event hooks
 // =============================================================================
-g_Client.on('ready', () => {
+g_Client.on(Events.ClientReady, async () => {
 	updatePresence();
 });
 
-g_Client.on('message', message => {
+g_Client.on(Events.MessageCreate, async (message) => {
 
 	if (message.author.bot) 
 		return;
@@ -132,7 +154,7 @@ g_Client.on('message', message => {
 	if(checkMentionsAndJoin(message, replyFunc))
 		return;
 
-	if(message.channel.type != "dm")
+	if(message.channel.type != ChannelType.DM)
 		return;
 
 	let cabinet = {
@@ -148,7 +170,7 @@ g_Client.on('message', message => {
 	if(bDidRunCmd) 
 		return;
 
-	let currConnection = findConnectionForAuthor(message.author);
+	let currConnection = await findConnectionForAuthor(message.author);
 
 	if(!currConnection) {
 		replyFunc("I don't see you in any voice channels I'm in. Try sending me '!help'.");
@@ -156,14 +178,14 @@ g_Client.on('message', message => {
 	}
 
 	queueNewSpeak(currConnection, message.content,
-		g_Storage.get(message.author.id, "language"),
-		g_Storage.get(message.author.id, "gender"), 
+		g_Storage.get(message.author.id, "language") as string,
+		g_Storage.get(message.author.id, "gender") as string, 
 		(err) => { replyFunc("An error has occured, make sure Graftax sees this: " + err.message); 
 	});
 
 });
 
-g_Client.on('voiceStateUpdate', (oldState, newState) => {
+g_Client.on(Events.VoiceStateUpdate, async (oldState: VoiceState, newState: VoiceState) => {
 
 	// If the user was not in a channel before, do nothing.
 	if(!oldState.channel)
@@ -173,17 +195,16 @@ g_Client.on('voiceStateUpdate', (oldState, newState) => {
 	if(newState.channel && oldState.channel.id == newState.channel.id)
 		return;
 
-	let connection = g_Client.voice.connections.find((connection) => {
-		return connection.channel.id == oldState.channel.id;
-	});
-
+	let connection = DSVoice.getVoiceConnection(oldState.guild.id);
 	if(!connection)
 		return;
-	
+
 	// We are connected, and there is only 1 user left, so it must be us. Lets
 	// leave since there is no point in hanging around an empty channel.
-	if(connection.channel.members.size == 1)
-		connection.disconnect();
+	let guild = await g_Client.guilds.fetch(oldState.guild.id);
+
+	if(oldState.channel.members.size == 1)
+		connection.destroy();
 
 });
 
@@ -195,16 +216,21 @@ g_Client.login(process.env.DISCORD_TOKEN);
 // =============================================================================
 function updatePresence() {
 
-	let count : number = g_Client.voice.connections.size;
-	g_Client.user.setPresence({ 
-		activity: { 
-			name: `sounds in ${count} channel${count == 1 ? "" : "s"}.`
-		}, status: 'online' 
+	let count = DSVoice.getVoiceConnections().keys.length;
+
+	g_Client.user.setPresence({
+		status: "online",
+		afk: false,
+		activities: [{
+			name: `sounds in ${count} channel${count == 1 ? "" : "s"}.`,
+			url: "https://graftax.net",
+			type: ActivityType.Streaming
+		}]
 	});
 
 }
 
-function checkMentionsAndJoin(message, reply) {
+function checkMentionsAndJoin(message: Message, reply) {
 
 	if(message.mentions.everyone)
 		return false;
@@ -222,19 +248,31 @@ function checkMentionsAndJoin(message, reply) {
 		return true;
 	}
 
-	message.member.voice.channel.join().then((connection) => {
-
-		updatePresence();
-
-		connection.on("disconnect", () => {
-			g_QProcessor.clearQueue(connection.channel.id);
-			updatePresence();
-		});
-
-		message.author.send(`I have joined you in ${connection.channel.name}. Message me here and I'll read it aloud for you.`)
-	
+	let connection = DSVoice.joinVoiceChannel({
+		channelId: message.member.voice.channel.id,
+		guildId: message.member.voice.channel.guildId,
+		adapterCreator: createDiscordJSAdapter(message.member.voice.channel)
 	});
 
+	updatePresence();
+
+	connection.on("stateChange", (oldState, newState) => {
+
+		if(oldState.status != DSVoice.VoiceConnectionStatus.Disconnected 
+			&& newState.status == DSVoice.VoiceConnectionStatus.Disconnected) {
+
+			g_QProcessor.clearQueue(message.member.voice.channel.id);
+			updatePresence();
+		}
+		
+	});
+
+	connection.on("error", (error) => {
+		console.error(error.message);
+	});
+
+	message.author.send(`I have joined you in ${message.member.voice.channel.name}. Message me here and I'll read it aloud for you.`);
+	
 	return true;
 }
 
@@ -246,17 +284,28 @@ function createReplyFunc(message) {
 	return (output: string) => {message.reply(output)};
 }
 
-function findConnectionForAuthor(author) {
+async function findConnectionForAuthor(author: User) {
 
-	return g_Client.voice.connections.find((connection) => {
-		return connection.channel.members.has(author.id);
-	});
+	let voiceConnections = DSVoice.getVoiceConnections();
+	for(let currConn of voiceConnections.values()) {
 
+		let guild = await g_Client.guilds.fetch(currConn.joinConfig.guildId);
+		let member = await guild.members.fetch(author);
+
+		if(!member)
+			continue;
+
+		if(currConn.joinConfig.channelId == member.voice.channelId)
+			return currConn;
+
+	}
+
+	return null;
 }
 
-function queueNewSpeak(connection, text, language, gender, onError) {
+function queueNewSpeak(connection: DSVoice.VoiceConnection, text: string, language: string, gender: string, onError) {
 
-	g_QProcessor.addToQueue(connection.channel.id, {
+	g_QProcessor.addToQueue(connection.joinConfig.channelId, {
 		connection: connection,
 		text: text,
 		language: language,
@@ -265,13 +314,13 @@ function queueNewSpeak(connection, text, language, gender, onError) {
 }
 
 function onProcessNextSpeak(item, next) {
-	
+
 	speakOnConnectionWave(item, next, (err) => {
 		console.log(err.message);
 	});
 }
 
-function speakOnConnectionWave(params, onFinish, onError) {
+function speakOnConnectionWave(params: QueueItem, onFinish, onError) {
 
 	const reqBodyObject = {
 		"input": {
@@ -297,7 +346,7 @@ function speakOnConnectionWave(params, onFinish, onError) {
 		}
 	};
 	
-	const req = https.request(options, res => {
+	const req = request(options, res => {
 
 		var jsonResBody = "";
 		
@@ -314,10 +363,14 @@ function speakOnConnectionWave(params, onFinish, onError) {
 			readable._read = () => {};
 			readable.push(audioBuffer);
 			readable.push(null);
+			
+			params.connection.subscribe(player);
 
-			params.connection.play(readable).on("speaking", (value: boolean) => {
-				if(!value && onFinish) onFinish();
-			});
+			player.play(DSVoice.createAudioResource(readable, {
+				inputType: DSVoice.StreamType.Arbitrary
+			}));
+
+			if(onFinish) onFinish();
 
 		});
 

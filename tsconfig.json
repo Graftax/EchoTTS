@@ -1,9 +1,12 @@
 {
 	"compilerOptions": {
+		"allowSyntheticDefaultImports": true,
 		"composite": true,
+		"moduleResolution": "node",
 		"outDir": "./dist",
 		"rootDir": "./src",
+		"target": "ES2022",
 		"tsBuildInfoFile": "./dist/.tsbuildinfo"
 	},
-	"include": ["src/*"],
+	"include": ["src/*"]
 }

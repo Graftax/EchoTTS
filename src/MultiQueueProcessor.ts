@@ -1,14 +1,14 @@
-export default class MultiQueueProcessor {
+export default class MultiQueueProcessor<ItemType> {
 
 	private m_processorFunc: (item: any, next: () => void ) => void;
-	private m_queues: object;
+	private m_queues: {[key: string]: Array<ItemType>};
 
 	constructor(processFunc: (item: any, next: () => void ) => void) {
 		this.m_processorFunc = processFunc;
 		this.m_queues = {};
 	}
 
-	private processNext(queueID, shouldShift: boolean) {
+	private processNext(queueID: string, shouldShift: boolean) {
 
 		if(shouldShift)
 			this.m_queues[queueID].shift();
@@ -20,7 +20,7 @@ export default class MultiQueueProcessor {
 
 	}
 
-	addToQueue(queueID: number, item: any) : void {
+	addToQueue(queueID: string, item: ItemType) : void {
 
 		if(!this.m_queues[queueID])
 			this.m_queues[queueID] = [];
@@ -32,7 +32,7 @@ export default class MultiQueueProcessor {
 
 	}
 
-	clearQueue(queueID: number) {
+	clearQueue(queueID: string) {
 		this.m_queues[queueID] = [];
 	}
 }

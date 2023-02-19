@@ -1,5 +1,5 @@
-const low = require('lowdb');
-const FileSync = require('lowdb/adapters/FileSync')
+import low from 'lowdb';
+import FileSync from 'lowdb/adapters/FileSync.js';
 
 type PropValue = boolean|string|number|null;
 
