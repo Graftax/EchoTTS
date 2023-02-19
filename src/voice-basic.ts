@@ -11,6 +11,9 @@ import { GatewayIntentBits } from 'discord-api-types/v9';
 import { Client, VoiceBasedChannel } from 'discord.js';
 import { createDiscordJSAdapter } from './adapter.js';
 
+import dotenv from 'dotenv';
+dotenv.config();
+
 /**
  * 	In this example, we are creating a single audio player that plays to a number of voice channels.
  * The audio player will play a single track.
@@ -153,4 +156,4 @@ client.on('messageCreate', async (message) => {
 
 });
 
-void client.login("ODEwOTQxOTIyNDg2NTE3Nzcw.YCq-hA.ldJCtNu65mh1KSfu-LrAsogO-SQ");
+void client.login(process.env.DISCORD_TOKEN);
