@@ -8,7 +8,7 @@ const languages = [...rawLanguages].sort();
 
 import { request } from 'https';
 import { Readable } from 'stream';
-import { Client, Events, User, Message, ActivityType, VoiceState, GatewayIntentBits, ChannelType } from 'discord.js';
+import { Client, Events, User, Message, ActivityType, VoiceState, GatewayIntentBits, ChannelType, Partials } from 'discord.js';
 
 import * as DSVoice from '@discordjs/voice';
 import Commander from './Commander.js';
@@ -23,20 +23,23 @@ interface QueueItem {
 	gender: string
 }
 
-
 // Construct Core Classes
 // =============================================================================
 const g_Commander = new Commander();
 const g_Client = new Client({
 	intents: [
-		GatewayIntentBits.Guilds, 
+		GatewayIntentBits.DirectMessages,
 		GatewayIntentBits.GuildMessages,
+		GatewayIntentBits.Guilds, 
 		GatewayIntentBits.GuildVoiceStates,
-		GatewayIntentBits.DirectMessages
-	]
+		GatewayIntentBits.MessageContent
+	],
+	partials: [Partials.Channel]
 });
 
 const g_QProcessor = new MultiQueueProcessor<QueueItem>(onProcessNextSpeak);
+const g_Players: Map<string, DSVoice.AudioPlayer> = new Map();
+
 const g_Storage = new DataStorage("users-db.json", 1);
 g_Storage.setDefaults({
 	"gender": "FEMALE",
@@ -126,7 +129,7 @@ g_Commander.registerCommand("shutup", async (args, cabinet, reply) => {
 		return;
 	}
 
-	g_QProcessor.clearQueue(currConnection.joinConfig.channelId);
+	g_QProcessor.clearQueue(currConnection.joinConfig.guildId);
 
 	queueNewSpeak(currConnection, `${cabinet.author.username} told me to shut up.`,
 		g_Storage.get(cabinet.author.id, "language") as string,
@@ -136,8 +139,6 @@ g_Commander.registerCommand("shutup", async (args, cabinet, reply) => {
 
 });
 
-const player = DSVoice.createAudioPlayer();
-
 // Client event hooks
 // =============================================================================
 g_Client.on(Events.ClientReady, async () => {
@@ -145,7 +146,6 @@ g_Client.on(Events.ClientReady, async () => {
 });
 
 g_Client.on(Events.MessageCreate, async (message) => {
-
 	if (message.author.bot) 
 		return;
 
@@ -167,8 +167,9 @@ g_Client.on(Events.MessageCreate, async (message) => {
 		cabinet,
 		replyFunc);
 		
-	if(bDidRunCmd) 
+	if(bDidRunCmd) {
 		return;
+	}
 
 	let currConnection = await findConnectionForAuthor(message.author);
 
@@ -261,7 +262,7 @@ function checkMentionsAndJoin(message: Message, reply) {
 		if(oldState.status != DSVoice.VoiceConnectionStatus.Disconnected 
 			&& newState.status == DSVoice.VoiceConnectionStatus.Disconnected) {
 
-			g_QProcessor.clearQueue(message.member.voice.channel.id);
+			g_QProcessor.clearQueue(connection.joinConfig.guildId);
 			updatePresence();
 		}
 		
@@ -270,6 +271,9 @@ function checkMentionsAndJoin(message: Message, reply) {
 	connection.on("error", (error) => {
 		console.error(error.message);
 	});
+
+	g_Players[message.guildId] = DSVoice.createAudioPlayer();
+	connection.subscribe(g_Players[message.guildId]);
 
 	message.author.send(`I have joined you in ${message.member.voice.channel.name}. Message me here and I'll read it aloud for you.`);
 	
@@ -291,7 +295,6 @@ async function findConnectionForAuthor(author: User) {
 
 		let guild = await g_Client.guilds.fetch(currConn.joinConfig.guildId);
 		let member = await guild.members.fetch(author);
-
 		if(!member)
 			continue;
 
@@ -305,7 +308,7 @@ async function findConnectionForAuthor(author: User) {
 
 function queueNewSpeak(connection: DSVoice.VoiceConnection, text: string, language: string, gender: string, onError) {
 
-	g_QProcessor.addToQueue(connection.joinConfig.channelId, {
+	g_QProcessor.addToQueue(connection.joinConfig.guildId, {
 		connection: connection,
 		text: text,
 		language: language,
@@ -363,12 +366,12 @@ function speakOnConnectionWave(params: QueueItem, onFinish, onError) {
 			readable._read = () => {};
 			readable.push(audioBuffer);
 			readable.push(null);
-			
-			params.connection.subscribe(player);
 
-			player.play(DSVoice.createAudioResource(readable, {
+			let newAudio = DSVoice.createAudioResource(readable, {
 				inputType: DSVoice.StreamType.Arbitrary
-			}));
+			});
+
+			g_Players[params.connection.joinConfig.guildId].play(newAudio);
 
 			if(onFinish) onFinish();
 
