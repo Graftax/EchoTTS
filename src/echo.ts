@@ -8,13 +8,20 @@ const languages = [...rawLanguages].sort();
 
 import { request } from 'https';
 import { Readable } from 'stream';
-import { Client, Events, User, Message, ActivityType, VoiceState, GatewayIntentBits, ChannelType, Partials } from 'discord.js';
+import { Client, Events, User, Message, ActivityType, VoiceState, GatewayIntentBits, ChannelType, Partials, TextChannel } from 'discord.js';
 
 import * as DSVoice from '@discordjs/voice';
 import Commander from './Commander.js';
 import DataStorage from './DataStorage.js';
 import MultiQueueProcessor from './MultiQueueProcessor.js';
 import { createDiscordJSAdapter } from './adapter.js';
+
+import { Configuration, OpenAIApi } from "openai";
+const configuration = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+const openai = new OpenAIApi(configuration);
 
 interface QueueItem {
 	connection: DSVoice.VoiceConnection,
@@ -145,11 +152,34 @@ g_Client.on(Events.ClientReady, async () => {
 	updatePresence();
 });
 
+function createPrompt(userInput) {
+	return `You are an AI chatbot named Echo. Answer the following prompt sarcastically: ${userInput}`;
+}
+
 g_Client.on(Events.MessageCreate, async (message) => {
 	if (message.author.bot) 
 		return;
 
 	const replyFunc = createReplyFunc(message);
+
+	let messageChannel = await g_Client.channels.fetch(message.channelId) as TextChannel;
+	if(message.content.length > 0 && messageChannel.isTextBased() && messageChannel.name == "echotalk") {
+
+		const completion = await openai.createCompletion({
+			model: "text-davinci-003",
+			prompt: createPrompt(message.content),
+			temperature: 0.9,
+			max_tokens: 2048
+			
+		});
+
+		if(completion.data.choices.length > 0)
+		{
+			if(completion.data.choices[0].text.length > 0)
+				message.reply(completion.data.choices[0].text);
+		}
+			
+	}
 
 	if(checkMentionsAndJoin(message, replyFunc))
 		return;
