@@ -8,7 +8,7 @@ const languages = [...rawLanguages].sort();
 
 import { request } from 'https';
 import { Readable } from 'stream';
-import { Client, Events, User, Message, ActivityType, VoiceState, GatewayIntentBits, ChannelType, Partials, TextChannel } from 'discord.js';
+import { Client, Events, User, Message, ActivityType, VoiceState, GatewayIntentBits, ChannelType, Partials, TextChannel, CommandInteraction } from 'discord.js';
 
 import * as DSVoice from '@discordjs/voice';
 import Commander from './Commander.js';
@@ -55,96 +55,96 @@ g_Storage.setDefaults({
 
 // Command Registration
 // =============================================================================
-g_Commander.registerCommand("help", (args, cabinet, reply) => {
+// g_Commander.registerCommand("help", (args, cabinet, reply) => {
 	
-	let cmdList = g_Commander.getCommandList();
-	let output: string = "Commands I support in DMs:\n";
+// 	let cmdList = g_Commander.getCommandList();
+// 	let output: string = "Commands I support in DMs:\n";
 
-	cmdList.forEach(cmdName => {
-		output += `\t${cmdName}\n`; 
-	});
+// 	cmdList.forEach(cmdName => {
+// 		output += `\t${cmdName}\n`; 
+// 	});
 
-	output += "If you dont know what a command does, try running it by itself.\n"
+// 	output += "If you dont know what a command does, try running it by itself.\n"
 
-	reply(output);
+// 	reply(output);
 
-});
+// });
 
-g_Commander.registerCommand("tutorial", (args, cabinet, reply) => {	
-	reply("While you are connected to a voice channel, @mention me on the same server and I will join you. Once I'm in a channel with you, send me a DM and I will read it out loud. Feel free to disconnect me when you don't need me anymore.");
-});
+// g_Commander.registerCommand("tutorial", (args, cabinet, reply) => {	
+// 	reply("While you are connected to a voice channel, @mention me on the same server and I will join you. Once I'm in a channel with you, send me a DM and I will read it out loud. Feel free to disconnect me when you don't need me anymore.");
+// });
 
-g_Commander.registerCommand("settings", (args, cabinet, reply) => {
-	reply("Your settings:\n" + JSON.stringify(g_Storage.getAll(cabinet.author.id), null, 4));
-});
+// g_Commander.registerCommand("settings", (args, cabinet, reply) => {
+// 	reply("Your settings:\n" + JSON.stringify(g_Storage.getAll(cabinet.author.id), null, 4));
+// });
 
-g_Commander.registerCommand("gender", (args, cabinet, reply) => {
+// g_Commander.registerCommand("gender", (args, cabinet, reply) => {
 
-	if(args.length < 1) {
-		reply("That command lets you set your voice gender.\nOptions:\n\tmale\n\tfemale\nExample: !gender male");
-		return;
-	}
+// 	if(args.length < 1) {
+// 		reply("That command lets you set your voice gender.\nOptions:\n\tmale\n\tfemale\nExample: !gender male");
+// 		return;
+// 	}
 
-	if(args[0].toLowerCase() == "male") {
-		g_Storage.set(cabinet.author.id, "gender", "MALE");
-		reply("I have set your voice gender to 'MALE'.");
-		return;
-	}
+// 	if(args[0].toLowerCase() == "male") {
+// 		g_Storage.set(cabinet.author.id, "gender", "MALE");
+// 		reply("I have set your voice gender to 'MALE'.");
+// 		return;
+// 	}
 
-	if(args[0].toLowerCase() == "female") {
-		g_Storage.set(cabinet.author.id, "gender", "FEMALE");
-		reply("I have set your voice gender to 'FEMALE'.");
-		return;
-	}
+// 	if(args[0].toLowerCase() == "female") {
+// 		g_Storage.set(cabinet.author.id, "gender", "FEMALE");
+// 		reply("I have set your voice gender to 'FEMALE'.");
+// 		return;
+// 	}
 
-	reply("I'm not sure which gender you wanted; I only support 'male' or 'female' right now.");
-});
+// 	reply("I'm not sure which gender you wanted; I only support 'male' or 'female' right now.");
+// });
 
-g_Commander.registerCommand("language", (args, cabinet, reply) => {
+// g_Commander.registerCommand("language", (args, cabinet, reply) => {
 
-	if(args.length < 1) {
+// 	if(args.length < 1) {
 
-		let langOptions = "Options:\n";
-		languages.forEach((lang) => {
-			langOptions += `\t${lang}\n`;
-		});
+// 		let langOptions = "Options:\n";
+// 		languages.forEach((lang) => {
+// 			langOptions += `\t${lang}\n`;
+// 		});
 
-		reply(`That command lets you change your voice language.\n${langOptions}Example: !language en-US`);
-		return;
-	}
+// 		reply(`That command lets you change your voice language.\n${langOptions}Example: !language en-US`);
+// 		return;
+// 	}
 
-	const found = languages.find((lang) => {
-		return lang.toLowerCase() == args[0].toLowerCase();
-	});
+// 	const found = languages.find((lang) => {
+// 		return lang.toLowerCase() == args[0].toLowerCase();
+// 	});
 
-	if(found) {
-		g_Storage.set(cabinet.author.id, "language", found);
-		reply(`I have set your voice language to '${found}'.`);
-		return;
-	}
+// 	if(found) {
+// 		g_Storage.set(cabinet.author.id, "language", found);
+// 		reply(`I have set your voice language to '${found}'.`);
+// 		return;
+// 	}
 
-	reply("Im not sure which language you wanted.");
+// 	reply("Im not sure which language you wanted.");
 
-});
+// });
 
-g_Commander.registerCommand("shutup", async (args, cabinet, reply) => {
+// g_Commander.registerCommand("shutup", async (args, cabinet, reply) => {
 
-	let currConnection = await findConnectionForAuthor(cabinet.author);
+// 	let currConnection = await findConnectionForAuthor(cabinet.author);
 
-	if(!currConnection) {
-		reply("I don't see you in any voice channels I'm in.");
-		return;
-	}
+// 	if(!currConnection) {
+// 		reply("I don't see you in any voice channels I'm in.");
+// 		return;
+// 	}
 
-	g_QProcessor.clearQueue(currConnection.joinConfig.guildId);
+// 	g_QProcessor.clearQueue(currConnection.joinConfig.guildId);
 
-	queueNewSpeak(currConnection, `${cabinet.author.username} told me to shut up.`,
-		g_Storage.get(cabinet.author.id, "language") as string,
-		g_Storage.get(cabinet.author.id, "gender") as string, 
-		(err) => { reply("An error has occured, make sure Graftax sees this: " + err.message); 
-	});
+// 	queueNewSpeak(currConnection, `${cabinet.author.username} told me to shut up.`,
+// 		g_Storage.get(cabinet.author.id, "language") as string,
+// 		g_Storage.get(cabinet.author.id, "gender") as string, 
+// 		(err) => { reply("An error has occured, make sure Graftax sees this: " + err.message); 
+// 	});
 
-});
+// });
 
 // Client event hooks
 // =============================================================================
@@ -187,20 +187,6 @@ g_Client.on(Events.MessageCreate, async (message) => {
 	if(message.channel.type != ChannelType.DM)
 		return;
 
-	let cabinet = {
-			author: message.author,
-			member: message.member
-	};
-
-	let bDidRunCmd : boolean = g_Commander.exec(
-		message.content, 
-		cabinet,
-		replyFunc);
-		
-	if(bDidRunCmd) {
-		return;
-	}
-
 	let currConnection = await findConnectionForAuthor(message.author);
 
 	if(!currConnection) {
@@ -237,6 +223,14 @@ g_Client.on(Events.VoiceStateUpdate, async (oldState: VoiceState, newState: Voic
 	if(oldState.channel.members.size == 1)
 		connection.destroy();
 
+});
+
+g_Client.on(Events.InteractionCreate, async (interaction) => {
+	g_Commander.exec(interaction);
+});
+
+g_Commander.loadCommands("commands").then(() => {
+	return g_Commander.registerCommands();
 });
 
 // Start the client
