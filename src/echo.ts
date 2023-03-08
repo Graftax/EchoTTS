@@ -1,24 +1,20 @@
 import dotenv from 'dotenv';
-if (process.env.NODE_ENV !== 'production') {
-  dotenv.config();
-}
-
-const rawLanguages = JSON.parse(process.env.LANGUAGES) as Array<string>;
-const languages = [...rawLanguages].sort();
+if (process.env.NODE_ENV !== 'production')
+	dotenv.config();
 
 import { request } from 'https';
 import { Readable } from 'stream';
 import { Client, Events, User, Message, ActivityType, VoiceState, GatewayIntentBits, ChannelType, Partials, TextChannel, CommandInteraction } from 'discord.js';
-
 import * as DSVoice from '@discordjs/voice';
-import Commander from './Commander.js';
-import DataStorage from './DataStorage.js';
+import { Singleton as Commander } from './Commander.js';
+import { Singleton as DataStorage } from './DataStorage.js';
+import { Singleton as ScenarioManager } from './Scenario.js';
 import MultiQueueProcessor from './MultiQueueProcessor.js';
 import { createDiscordJSAdapter } from './adapter.js';
 
 import { Configuration, OpenAIApi } from "openai";
 const configuration = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
+	apiKey: process.env.OPENAI_API_KEY,
 });
 
 const openai = new OpenAIApi(configuration);
@@ -32,7 +28,6 @@ interface QueueItem {
 
 // Construct Core Classes
 // =============================================================================
-const g_Commander = new Commander();
 const g_Client = new Client({
 	intents: [
 		GatewayIntentBits.DirectMessages,
@@ -44,88 +39,18 @@ const g_Client = new Client({
 	partials: [Partials.Channel]
 });
 
+ScenarioManager.setClient(g_Client);
+
 const g_QProcessor = new MultiQueueProcessor<QueueItem>(onProcessNextSpeak);
 const g_Players: Map<string, DSVoice.AudioPlayer> = new Map();
 
-const g_Storage = new DataStorage("users-db.json", 1);
-g_Storage.setDefaults({
+DataStorage.init("users-db.json", 1, {
 	"gender": "FEMALE",
 	"language": "en-US"
 });
 
 // Command Registration
 // =============================================================================
-// g_Commander.registerCommand("help", (args, cabinet, reply) => {
-	
-// 	let cmdList = g_Commander.getCommandList();
-// 	let output: string = "Commands I support in DMs:\n";
-
-// 	cmdList.forEach(cmdName => {
-// 		output += `\t${cmdName}\n`; 
-// 	});
-
-// 	output += "If you dont know what a command does, try running it by itself.\n"
-
-// 	reply(output);
-
-// });
-
-// g_Commander.registerCommand("tutorial", (args, cabinet, reply) => {	
-// 	reply("While you are connected to a voice channel, @mention me on the same server and I will join you. Once I'm in a channel with you, send me a DM and I will read it out loud. Feel free to disconnect me when you don't need me anymore.");
-// });
-
-// g_Commander.registerCommand("settings", (args, cabinet, reply) => {
-// 	reply("Your settings:\n" + JSON.stringify(g_Storage.getAll(cabinet.author.id), null, 4));
-// });
-
-// g_Commander.registerCommand("gender", (args, cabinet, reply) => {
-
-// 	if(args.length < 1) {
-// 		reply("That command lets you set your voice gender.\nOptions:\n\tmale\n\tfemale\nExample: !gender male");
-// 		return;
-// 	}
-
-// 	if(args[0].toLowerCase() == "male") {
-// 		g_Storage.set(cabinet.author.id, "gender", "MALE");
-// 		reply("I have set your voice gender to 'MALE'.");
-// 		return;
-// 	}
-
-// 	if(args[0].toLowerCase() == "female") {
-// 		g_Storage.set(cabinet.author.id, "gender", "FEMALE");
-// 		reply("I have set your voice gender to 'FEMALE'.");
-// 		return;
-// 	}
-
-// 	reply("I'm not sure which gender you wanted; I only support 'male' or 'female' right now.");
-// });
-
-// g_Commander.registerCommand("language", (args, cabinet, reply) => {
-
-// 	if(args.length < 1) {
-
-// 		let langOptions = "Options:\n";
-// 		languages.forEach((lang) => {
-// 			langOptions += `\t${lang}\n`;
-// 		});
-
-// 		reply(`That command lets you change your voice language.\n${langOptions}Example: !language en-US`);
-// 		return;
-// 	}
-
-// 	const found = languages.find((lang) => {
-// 		return lang.toLowerCase() == args[0].toLowerCase();
-// 	});
-
-// 	if(found) {
-// 		g_Storage.set(cabinet.author.id, "language", found);
-// 		reply(`I have set your voice language to '${found}'.`);
-// 		return;
-// 	}
-
-// 	reply("Im not sure which language you wanted.");
-
-// });
 
 // g_Commander.registerCommand("shutup", async (args, cabinet, reply) => {
 
@@ -157,6 +82,7 @@ function createPrompt(userInput) {
 }
 
 g_Client.on(Events.MessageCreate, async (message) => {
+	
 	if (message.author.bot) 
 		return;
 
@@ -188,15 +114,14 @@ g_Client.on(Events.MessageCreate, async (message) => {
 		return;
 
 	let currConnection = await findConnectionForAuthor(message.author);
-
 	if(!currConnection) {
 		replyFunc("I don't see you in any voice channels I'm in. Try sending me '!help'.");
 		return;
 	}
 
 	queueNewSpeak(currConnection, message.content,
-		g_Storage.get(message.author.id, "language") as string,
-		g_Storage.get(message.author.id, "gender") as string, 
+		DataStorage.get(message.author.id, "language") as string,
+		DataStorage.get(message.author.id, "gender") as string, 
 		(err) => { replyFunc("An error has occured, make sure Graftax sees this: " + err.message); 
 	});
 
@@ -204,33 +129,34 @@ g_Client.on(Events.MessageCreate, async (message) => {
 
 g_Client.on(Events.VoiceStateUpdate, async (oldState: VoiceState, newState: VoiceState) => {
 
-	// If the user was not in a channel before, do nothing.
-	if(!oldState.channel)
-		return;
+	//console.log(JSON.stringify(newState, null, "\t"));
 
-	// If the user stayed in the same channel, do nothing.
-	if(newState.channel && oldState.channel.id == newState.channel.id)
-		return;
+	// If oldState has a channel and new state has no channel, we left.
+	// let userList: Array<string> = [];
 
-	let connection = DSVoice.getVoiceConnection(oldState.guild.id);
-	if(!connection)
-		return;
+	// if(newState.channel) {
+	// 	newState.channel.members.forEach((each) => {
+	// 		userList.push(each.displayName);
+	// 	});
+	// 	console.log(JSON.stringify(userList, null, "\t"));
+	// }
 
-	// We are connected, and there is only 1 user left, so it must be us. Lets
-	// leave since there is no point in hanging around an empty channel.
-	let guild = await g_Client.guilds.fetch(oldState.guild.id);
+	if(oldState.channel && oldState.channel.members.size == 1) {
 
-	if(oldState.channel.members.size == 1)
-		connection.destroy();
+		let connection = DSVoice.getVoiceConnection(oldState.guild.id);
+		if(connection)
+			connection.destroy();
+
+	}
 
 });
 
 g_Client.on(Events.InteractionCreate, async (interaction) => {
-	g_Commander.exec(interaction);
+	Commander.exec(interaction);
 });
 
-g_Commander.loadCommands("commands").then(() => {
-	return g_Commander.registerCommands();
+Commander.loadCommands("commands").then(() => {
+	return Commander.registerCommands();
 });
 
 // Start the client

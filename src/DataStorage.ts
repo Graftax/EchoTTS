@@ -10,17 +10,18 @@ export default class DataStorage {
 	private m_db;
 	private m_clientDefaults = {};
 
-	constructor(filepath: string, version: number) {
+	constructor() {
+
+	}
+
+	init(filepath: string, version: number, defaults: object) {
 
 		this.m_version = version;
 		this.m_adapter = new FileSync(filepath);
 		this.m_db = low(this.m_adapter);
 		this.m_db.defaults({ entities: [] }).write();
-		this.m_clientDefaults = {};
-	}
-
-	setDefaults(defaults: object) {
 		this.m_clientDefaults = defaults;
+
 	}
 
 	private provideEntity(id: string) :void {
@@ -69,3 +70,6 @@ export default class DataStorage {
 
 	}
 }
+
+let Singleton = new DataStorage();
+export { Singleton };

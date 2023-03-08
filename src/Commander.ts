@@ -5,9 +5,9 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-interface Command {
+export interface Command {
 	slashcommand: SlashCommandBuilder,
-	execute: (Interaction) => void
+	execute: (interaction: CommandInteraction) => void,
 }
 
 export default class Commander {
@@ -59,14 +59,7 @@ export default class Commander {
 
 	// Returns a list of command names.
 	getCommandList() {
-		
-		let commandNames: Array<string> = [];
-		for(const cmdName in this.m_commandMap) {
-			commandNames.push("/" + cmdName);
-		}
-
-		return commandNames.sort();
-
+		return  Array.from(this.m_commandMap.keys()).sort();
 	}
 
 	// Processes the text and runs the apropriate
@@ -76,6 +69,9 @@ export default class Commander {
 			return false;
 
 		let cmdIaction = iaction as CommandInteraction;
+		if(cmdIaction == null)
+			return false;
+
 		let currCmd = this.m_commandMap.get(iaction.commandName);
 
 		if(!currCmd) {
@@ -89,3 +85,6 @@ export default class Commander {
 
 	}
 }
+
+let Singleton = new Commander();
+export { Singleton };
