@@ -50,9 +50,14 @@ export class ScenarioManager {
 		if(!this._client)
 			return false;
 
+		if(this.getScenario(channel, toStart.constructor.name))
+			return false;
+
+		console.info(`Starting ${toStart.constructor.name} in ${channel}`);
 		this.addScenario(channel.id, toStart);
 
 		toStart.end = () => {
+			console.info(`Stopping ${toStart.constructor.name} in ${channel}`);
 			toStart.shutdown();
 			this.removeScenario(channel.id, toStart);
 		};
@@ -60,6 +65,22 @@ export class ScenarioManager {
 		toStart.init(channel, this._client);
 
 		return true;
+	}
+
+	getScenario(channel: Channel, scenarioName: string): Scenario | null {
+
+		let scenario = this._scenarios.get(channel.id);
+		if(!scenario)
+			return null;
+
+		let filtered = scenario.filter((value) => {
+			return value.constructor.name == scenarioName;
+		});
+
+		if(filtered.length <= 0)
+			return null;
+
+		return filtered[0];
 	}
 	
 }

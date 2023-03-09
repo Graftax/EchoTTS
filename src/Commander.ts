@@ -79,7 +79,6 @@ export default class Commander {
 			return false;
 		}
 
-		// TODO: Permissions check here, going to need more supplied data
 		currCmd.execute(cmdIaction);
 		return true;
 
