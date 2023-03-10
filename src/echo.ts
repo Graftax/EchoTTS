@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 if (process.env.NODE_ENV !== 'production')
 	dotenv.config();
 
-import { Client, Events, ActivityType, GatewayIntentBits, Partials, TextChannel } from 'discord.js';
+import { Client, Events, ActivityType, GatewayIntentBits, Partials } from 'discord.js';
 import * as DSVoice from '@discordjs/voice';
 import { Singleton as Commander } from './Commander.js';
 import { Singleton as DataStorage } from './DataStorage.js';
