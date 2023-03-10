@@ -72,7 +72,7 @@ export default class Chatbot implements Scenario {
 		});
 
 		if(!this._timeout)
-			this._timeout = setTimeout(this.onTimeout, 1000 * 30);
+			this._timeout = setTimeout(this.onTimeout, 1000 * 60 * 30);
 
 		this._timeout.refresh();
 	}
@@ -81,6 +81,6 @@ export default class Chatbot implements Scenario {
 
 		this._channel.send("I'm leaving, goodbye!");
 		this.end();
-		
+
 	}
 }
