@@ -24,7 +24,7 @@
   },
   "scripts": {
     "start": "node dist/echo.js",
-    "build": "tsc",
+    "build": "tsc && node pack-res.js",
     "watch": "tsc -w"
   },
   "author": "",
