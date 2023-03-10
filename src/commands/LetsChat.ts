@@ -9,9 +9,6 @@ export default {
 		.setDescription('Echo will start text chatting in this channel.'),
 	async execute(interaction) {
 
-		if(!interaction.guild)
-			return;
-
 		if(!interaction.channel)
 			return;
 			
