@@ -120,7 +120,7 @@ export default class Chatbot implements Scenario {
 		let output = completion.data.choices[0].text;
 
 		const stripToken = "{Echo}:";
-		if(output.startsWith(stripToken))
+		while(output.startsWith(stripToken))
 			output = output.slice(stripToken.length);
 
 		if(output.length <= 0)
