@@ -73,10 +73,7 @@ export default class Chatbot implements Scenario {
 			outString += `${username}:${message.content}\t`;
 		});
 
-		console.log(outString);
-
 		return outString;
-
 	}
 
 	onMessageCreate = (message: Message) => {

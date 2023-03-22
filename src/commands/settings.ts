@@ -18,21 +18,24 @@ let command = new SlashCommandBuilder();
 		return option.setName("language")
 		.setDescription("What language Echo tries to use when speaking for you.")
 		.addChoices(
-			{ name: "Upside Down", 					value: "en-AU" },
-			{ name: "Call Center", 					value: "en-IN" },
-			{ name: "Posh", 								value: "en-GB" },
-			{ name: "Freedumb", 						value: "en-US" },
-			{ name: "French (Not Fancy)", 	value: "fr-CA" },
-			{ name: "French (Fancy)", 			value: "fr-FR" },
-			{ name: "King DeDeDe", 					value: "de-DE" },
-			{ name: "Bahubali", 						value: "hi-IN" },
-			{ name: "Spaghetti", 						value: "it-IT" },
-			{ name: "NI HON GO", 						value: "ja-JP" },
-			{ name: "Cell Phone", 					value: "ko-KR" },
-			{ name: "GREAT WALL",						value: "cmn-CN"},
-			{ name: "*shrugs*", 						value: "nb-NO" },
-			{ name: "Cyka Blyat", 					value: "ru-RU" },
-			{ name: "Chankla", 							value: "es-ES" }
+			{ name: "English (Australia)", 		value: "en-AU" },
+			{ name: "English (India)", 				value: "en-IN" },
+			{ name: "English (UK)", 					value: "en-GB" },
+			{ name: "English (US)", 					value: "en-US" },
+			{ name: "French (Canada)", 				value: "fr-CA" },
+			{ name: "French (France)", 				value: "fr-FR" },
+			{ name: "German (Germany)", 			value: "de-DE" },
+			{ name: "Hindi (India)", 					value: "hi-IN" },
+			{ name: "Italian (Italy)", 				value: "it-IT" },
+			{ name: "Japanese (Japan)", 			value: "ja-JP" },
+			{ name: "Korean (South Korea)",		value: "ko-KR" },
+			{ name: "Mandarin Chinese",				value: "cmn-CN"},
+			{ name: "Norwegian (Norway)", 		value: "nb-NO" },
+			{ name: "Russian (Russia)", 			value: "ru-RU" },
+			{ name: "Spanish (Spain)", 				value: "es-ES" },
+			{ name: "Spanish (US)", 					value: "es-US" },
+			{ name: "Polish (Poland)", 				value: "pl-PL" }
+
 		)});
 
 
