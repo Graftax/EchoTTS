@@ -1,4 +1,5 @@
 import { Channel, Client } from "discord.js";
+import { Singleton as DataStorage } from "./DataStorage";
 
 export interface Scenario {
 
@@ -14,6 +15,11 @@ export class ScenarioManager {
 	private _scenarios: Map<string, Array<Scenario>> = new Map();
 
 	constructor() {
+
+	}
+
+	init() {
+		
 
 	}
 

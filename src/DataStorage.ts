@@ -6,9 +6,9 @@ type PropValue = boolean|string|number|null;
 export default class DataStorage {
 
 	private m_version: number;
-	private m_adapter;
-	private m_db;
-	private m_clientDefaults = {};
+	private m_adapter: typeof FileSync;
+	private m_db: low.LowdbSync<object>;
+	private m_clientDefaults: object = {};
 
 	constructor() {
 
@@ -66,7 +66,11 @@ export default class DataStorage {
 	set(id: string, propName: string, value: PropValue) : void {
 		
 		this.provideEntity(id);
-		this.m_db.get("entities").find({ "id": id }).set(propName, value).write();
+		this.m_db.get("entities").find({ "id": id }).set<PropValue>(propName, value).write();
+
+	}
+
+	setAll(id: string, toSet: object) {
 
 	}
 }
