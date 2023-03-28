@@ -51,6 +51,7 @@ export default class Commander {
 		}
 
 		const rest = new REST({version: '10'}).setToken(process.env.DISCORD_TOKEN);
+		console.log(process.env.DISCORD_APPLICATION_ID);
 		let res = await rest.put(Routes.applicationCommands(process.env.DISCORD_APPLICATION_ID), {
 			body: cmdJSON
 		});
