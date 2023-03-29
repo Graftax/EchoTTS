@@ -112,6 +112,7 @@ export default class TextToSpeech implements Scenario {
 			res.on('data', (d) => { jsonResBody += d; });
 			res.on('end', () => {
 				
+				console.log(jsonResBody);
 				var objResBody = JSON.parse(jsonResBody);
 				var audioBuffer = Buffer.from(objResBody.audioContent, 'base64');
 	
