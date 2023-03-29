@@ -149,7 +149,7 @@ export default class TextToSpeech implements Scenario {
 		if(!item)
 			return;
 
-		this.speak(item.text, item.options);
+		this.speak(item.text, item.options, (error) => {console.log(error.message)});
 	};
 
 	didEveryoneLeave(state: VoiceState): boolean {
@@ -199,6 +199,6 @@ export default class TextToSpeech implements Scenario {
 			return;
 		}
 
-		this.speak(toSpeak.text, toSpeak.options);
+		this.speak(toSpeak.text, toSpeak.options, (error) => {console.log(error.message)});
 	}
 }
