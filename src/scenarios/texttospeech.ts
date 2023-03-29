@@ -112,8 +112,13 @@ export default class TextToSpeech implements Scenario {
 			res.on('data', (d) => { jsonResBody += d; });
 			res.on('end', () => {
 				
-				console.log(jsonResBody);
 				var objResBody = JSON.parse(jsonResBody);
+
+				if(objResBody.error) {
+					onError?.(new Error(objResBody.message));
+					return;
+				}
+
 				var audioBuffer = Buffer.from(objResBody.audioContent, 'base64');
 	
 				const readable = new Readable();
@@ -132,7 +137,7 @@ export default class TextToSpeech implements Scenario {
 		});
 		
 		req.on('error', error => {
-			if(onError) onError(error);
+			onError?.(error);
 		});
 		
 		req.write(reqBodyString);
@@ -150,7 +155,7 @@ export default class TextToSpeech implements Scenario {
 		if(!item)
 			return;
 
-		this.speak(item.text, item.options, (error) => {console.log(error.message)});
+		this.speak(item.text, item.options, (error) => {console.log(error)});
 	};
 
 	didEveryoneLeave(state: VoiceState): boolean {
@@ -200,6 +205,6 @@ export default class TextToSpeech implements Scenario {
 			return;
 		}
 
-		this.speak(toSpeak.text, toSpeak.options, (error) => {console.log(error.message)});
+		this.speak(toSpeak.text, toSpeak.options, (error) => {console.log(error)});
 	}
 }
