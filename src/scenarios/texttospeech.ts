@@ -1,4 +1,4 @@
-import { Channel, Client, Events, Message, VoiceChannel, VoiceState } from "discord.js";
+import { Channel, Client, CommandInteraction, Events, Message, VoiceChannel, VoiceState } from "discord.js";
 import * as DSVoice from '@discordjs/voice';
 import { createDiscordJSAdapter } from "../adapter.js";
 import { Scenario } from "../Scenario";
@@ -14,6 +14,42 @@ interface VoiceOptions {
 interface SpeakItem {
 	text: string;
 	options: VoiceOptions;
+}
+
+export function setGender(interaction: CommandInteraction) {
+
+	let option = interaction.options.get("gender", false)
+	if(!option)
+		return;
+
+	DataStorage.set(interaction.user.id, "gender", option.value);
+
+}
+
+export function setLanguage(interaction: CommandInteraction) {
+
+	let option = interaction.options.get("language", false)
+	if(!option)
+		return;                                                                                        
+
+	DataStorage.set(interaction.user.id, "language", option.value);
+
+}
+
+function getDefaultSettingsObject(): object {
+
+	return {
+		"gender": "FEMALE",
+		"language": "en-US"
+	};
+
+}
+
+export function getSettings(userID: string) : object {
+
+	let settings = DataStorage.getAll(userID);
+	return Object.assign(getDefaultSettingsObject(), settings);
+
 }
 
 export default class TextToSpeech implements Scenario {
@@ -196,8 +232,8 @@ export default class TextToSpeech implements Scenario {
 			return;
 	
 		let toSpeak: SpeakItem = { text: message.content, options: {
-			languageCode: DataStorage.get(message.author.id, "language") as string,
-			ssmlGender: DataStorage.get(message.author.id, "gender") as string,
+			languageCode: getSettings(message.author.id)["language"],
+			ssmlGender: getSettings(message.author.id)["gender"]
 		}};
 
 		if(this._player.state.status != DSVoice.AudioPlayerStatus.Idle) {

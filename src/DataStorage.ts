@@ -8,20 +8,17 @@ export default class DataStorage {
 	private m_version: number;
 	private m_adapter: typeof FileSync;
 	private m_db: low.LowdbSync<object>;
-	private m_clientDefaults: object = {};
 
 	constructor() {
 
 	}
 
-	init(filepath: string, version: number, defaults: object) {
+	init(filepath: string, version: number) {
 
 		this.m_version = version;
 		this.m_adapter = new FileSync(filepath);
 		this.m_db = low(this.m_adapter);
 		this.m_db.defaults({ entities: [] }).write();
-		this.m_clientDefaults = defaults;
-
 	}
 
 	private provideEntity(id: string) :void {
@@ -37,9 +34,7 @@ export default class DataStorage {
 	}
 
 	private applyDefaults(target: object) : object {
-
-		let defaultObj = Object.assign({}, this.m_clientDefaults);
-		return Object.assign(defaultObj, target);
+		return Object.assign({}, target);
 	}
 
 	get(id: string, propName: string) : PropValue {

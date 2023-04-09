@@ -59,11 +59,11 @@ export class ScenarioManager {
 		if(this.getScenario(channel, toStart.constructor.name))
 			return false;
 
-		console.info(`Starting ${toStart.constructor.name} in ${channel}`);
+		console.log(`Starting ${toStart.constructor.name} in ${channel}`);
 		this.addScenario(channel.id, toStart);
 
 		toStart.end = () => {
-			console.info(`Stopping ${toStart.constructor.name} in ${channel}`);
+			console.log(`Stopping ${toStart.constructor.name} in ${channel}`);
 			toStart.shutdown();
 			this.removeScenario(channel.id, toStart);
 		};

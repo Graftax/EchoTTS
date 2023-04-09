@@ -1,6 +1,6 @@
-import { CommandInteraction, SlashCommandBuilder } from "discord.js";
+import { SlashCommandBuilder } from "discord.js";
 import { Command } from "../Commander.js";
-import { Singleton as DataStorage } from "../DataStorage.js";
+import { getSettings, setGender, setLanguage } from "../scenarios/texttospeech.js";
 
 let command = new SlashCommandBuilder();
 	command.setName('settings')
@@ -38,23 +38,14 @@ let command = new SlashCommandBuilder();
 
 		)});
 
-
-function saveOption(interaction: CommandInteraction, optionName: string) {
-
-	let option = interaction.options.get(optionName, false)
-	if(!option)
-		return;
-
-	DataStorage.set(interaction.user.id, optionName, option.value);
-}
-
 export default {
 	slashcommand: command,
 	async execute(interaction) {
 
-		saveOption(interaction, "gender");
-		saveOption(interaction, "language");
-		let settingsString = "Your settings:\n" + JSON.stringify(DataStorage.getAll(interaction.user.id), null, "\t");
+		setGender(interaction);
+		setLanguage(interaction);
+
+		let settingsString = "Your settings:\n" + JSON.stringify(getSettings(interaction.user.id), null, "\t");
 		interaction.reply({ content: settingsString, ephemeral: true });
 
 	}} as Command;

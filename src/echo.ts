@@ -22,10 +22,7 @@ const g_Client = new Client({
 
 ScenarioManager.setClient(g_Client);
 
-DataStorage.init("users-db.json", 1, {
-	"gender": "FEMALE",
-	"language": "en-US"
-});
+DataStorage.init("users-db.json", 1);
 
 // Client event hooks
 // =============================================================================

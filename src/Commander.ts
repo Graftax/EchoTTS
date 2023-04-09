@@ -45,14 +45,18 @@ export default class Commander {
 
 		let cmdJSON = [];
 		
-		for(let currCommand of this.m_commandMap.values()) {
-			console.log(`Registering command ${currCommand.slashcommand.name}`);
+		for(let currCommand of this.m_commandMap.values())
 			cmdJSON.push(currCommand.slashcommand.toJSON());
-		}
 
 		const rest = new REST({version: '10'}).setToken(process.env.DISCORD_TOKEN);
-		let res = await rest.put(Routes.applicationCommands(process.env.DISCORD_APPLICATION_ID), {
+		rest.put(Routes.applicationCommands(process.env.DISCORD_APPLICATION_ID), {
 			body: cmdJSON
+		}).then((value: Array<any>) => {
+
+			value.forEach(element => {
+				console.log(`Registered ${element.name}`);
+			});
+
 		});
 		
 	}
