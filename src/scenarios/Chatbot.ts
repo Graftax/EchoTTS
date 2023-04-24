@@ -72,6 +72,7 @@ export default class Chatbot implements Scenario {
 			outString += `${username}:${message.content}\t`;
 		});
 
+		outString += "{Echo}:"
 		return outString;
 	}
 
@@ -114,10 +115,6 @@ export default class Chatbot implements Scenario {
 	onCompletion = (completion: AxiosResponse<CreateCompletionResponse, any>) => {
 
 		let output = completion.data.choices[0].text;
-
-		const stripToken = "{Echo}:";
-		while(output.startsWith(stripToken))
-			output = output.slice(stripToken.length);
 
 		if(output.length <= 0)
 			output = "❌";

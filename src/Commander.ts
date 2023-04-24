@@ -1,10 +1,5 @@
 import { Collection, CommandInteraction, Interaction, REST, Routes, SlashCommandBuilder } from "discord.js";
-import fs from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from 'url';
 import CommandIndex from "./index/commands.js";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export interface Command {
 	slashcommand: SlashCommandBuilder,
@@ -18,7 +13,7 @@ export default class Commander {
 	constructor() {
 
 		for(let currName in CommandIndex)
-			this.m_commandMap.set( CommandIndex[currName].slashcommand.name, CommandIndex[currName]);
+			this.m_commandMap.set(CommandIndex[currName].slashcommand.name, CommandIndex[currName]);
 
 	}
 
@@ -30,7 +25,7 @@ export default class Commander {
 			cmdJSON.push(currCommand.slashcommand.toJSON());
 
 		const rest = new REST({version: '10'}).setToken(process.env.DISCORD_TOKEN);
-		
+
 		rest.put(Routes.applicationCommands(process.env.DISCORD_APPLICATION_ID), {
 			body: cmdJSON
 		}).then((value: Array<any>) => {
