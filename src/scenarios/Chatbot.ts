@@ -2,11 +2,7 @@ import { Scenario } from "../Scenario";
 import {AxiosResponse} from "axios";
 import { Channel, Client, Events, Message, TextChannel } from "discord.js";
 import fs from "fs";
-
 import { Configuration, OpenAIApi, ChatCompletionRequestMessage, ChatCompletionRequestMessageRoleEnum, CreateCompletionResponse } from "openai";
-const configuration = new Configuration({
-	apiKey: process.env.OPENAI_API_KEY,
-});
 
 export default class Chatbot implements Scenario {
 
@@ -14,8 +10,11 @@ export default class Chatbot implements Scenario {
 	_channel: TextChannel = null;
 	_client: Client = null;
 	_messages = new Array<Message>();
-	_openai = new OpenAIApi(configuration);
 	_timeout: ReturnType<typeof setTimeout> = null;
+
+	_openai = new OpenAIApi(new Configuration({
+		apiKey: process.env.OPENAI_API_KEY,
+	}));
 
 	init(channel: Channel, client: Client) {
 

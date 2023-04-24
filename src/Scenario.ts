@@ -1,11 +1,15 @@
 import { Channel, Client } from "discord.js";
-import { Singleton as DataStorage } from "./DataStorage";
+import { Singleton as DataStorage } from "./DataStorage.js";
 
 export interface Scenario {
 
 	init(channel: Channel, client: Client) : void;
 	shutdown() : void;
 	end: () => void;
+	
+}
+
+interface ScenarioData {
 	
 }
 
@@ -18,8 +22,11 @@ export class ScenarioManager {
 
 	}
 
-	init() {
-		
+	init(client: Client) {
+
+		this._client = client;
+		//let scenarioData = DataStorage.getAll("system/scenarios");
+
 
 	}
 
@@ -45,10 +52,6 @@ export class ScenarioManager {
 			this._scenarios.set(channelID, filtered);
 		else
 			this._scenarios.delete(channelID);
-	}
-
-	setClient(client: Client) {
-		this._client = client;
 	}
 
 	startScenario(channel: Channel, toStart: Scenario): boolean {

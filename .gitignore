@@ -4,3 +4,4 @@ config.json
 users-db.json
 .env
 res/introduction.txt
+src/index/

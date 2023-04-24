@@ -1,0 +1,13 @@
+{
+	"indexes": 
+	[
+		{
+			"path": "src/commands/",
+			"file": "src/index/commands.ts"
+		},
+		{
+			"path": "src/scenarios/",
+			"file": "src/index/scenarios.ts"
+		}
+	]
+}

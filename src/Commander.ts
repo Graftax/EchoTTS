@@ -2,6 +2,7 @@ import { Collection, CommandInteraction, Interaction, REST, Routes, SlashCommand
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from 'url';
+import CommandIndex from "./index/commands.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -16,28 +17,8 @@ export default class Commander {
 
 	constructor() {
 
-	}
-
-	loadCommands(pathToCommands): Promise<void> {
-
-		return new Promise((resolve, reject) => {
-
-			const commandsPath = path.join(__dirname, pathToCommands);
-			fs.readdir(commandsPath).then(async (files) => {
-
-				files = files.filter(file => file.endsWith('.js'));
-				for(let currFile of files) {
-
-					const currPath = "file://" + path.join(commandsPath, currFile);
-					console.log(`Importing ${currFile}`);
-					let command = (await import(currPath)).default as Command;
-					this.m_commandMap.set(command.slashcommand.name, command);
-
-				}
-
-				resolve();
-			});
-		});
+		for(let currName in CommandIndex)
+			this.m_commandMap.set( CommandIndex[currName].slashcommand.name, CommandIndex[currName]);
 
 	}
 
@@ -49,6 +30,7 @@ export default class Commander {
 			cmdJSON.push(currCommand.slashcommand.toJSON());
 
 		const rest = new REST({version: '10'}).setToken(process.env.DISCORD_TOKEN);
+		
 		rest.put(Routes.applicationCommands(process.env.DISCORD_APPLICATION_ID), {
 			body: cmdJSON
 		}).then((value: Array<any>) => {

@@ -20,8 +20,7 @@ const g_Client = new Client({
 	partials: [Partials.Channel]
 });
 
-ScenarioManager.setClient(g_Client);
-
+ScenarioManager.init(g_Client);
 DataStorage.init("users-db.json", 1);
 
 // Client event hooks
@@ -39,9 +38,7 @@ g_Client.on(Events.InteractionCreate, async (interaction) => {
 	Commander.exec(interaction);
 });
 
-Commander.loadCommands("commands").then(() => {
-	return Commander.registerCommands();
-});
+await Commander.registerCommands();
 
 // Start the client
 // =============================================================================
