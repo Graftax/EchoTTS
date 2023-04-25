@@ -64,7 +64,7 @@ fs.readFile("precompile.json", "utf-8").then((value) => {
 				await outFile.write("export default {\n");
 
 				for(let currImport of importList) {
-					await outFile.write(`\t${currImport.name.toLowerCase()}: ${currImport.name},\n`);
+					await outFile.write(`\t${currImport.name}: ${currImport.name},\n`);
 				}
 
 				await outFile.write("};");

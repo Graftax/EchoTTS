@@ -13,4 +13,9 @@ export default class Poll implements Scenario {
 	shutdown() {
 	
 	}
+
+	isPermanent() {
+		return true;
+	}
+	
 }

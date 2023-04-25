@@ -35,6 +35,10 @@ export default class Chatbot implements Scenario {
 		this._client.removeListener(Events.MessageCreate, this.onMessageCreate);
 	}
 
+	isPermanent() {
+		return false;
+	}
+
 	getPromptString(): string {
 
 		//TODO: Break prompt in to different pieces, like personality, etc.

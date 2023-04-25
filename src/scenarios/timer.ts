@@ -13,4 +13,9 @@ export default class Timer implements Scenario {
 	shutdown() {
 
 	}
+
+	isPermanent() {
+		return false;
+	};
+	
 }

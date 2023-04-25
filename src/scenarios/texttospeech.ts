@@ -75,6 +75,9 @@ export default class TextToSpeech implements Scenario {
 		let voiceChannel = channel as VoiceChannel;
 
 		// TODO: Generic system for sharing voice connection.
+		// It would be nice if scenarios could share the same
+		// voice connection, but the use case is limited right
+		// now, since only one scenario uses voice.
 		let prevConnection = DSVoice.getVoiceConnection(voiceChannel.guildId);
 		if(prevConnection){
 			console.warn(`Scenario failed: voice connection already in use in ${voiceChannel.name}`);
@@ -119,6 +122,10 @@ export default class TextToSpeech implements Scenario {
 		if(this._connection)
 			this._connection.destroy();
 
+	}
+
+	isPermanent() {
+		return false;
 	}
 
 	addSubject(userID: string) {

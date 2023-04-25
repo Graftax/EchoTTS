@@ -20,8 +20,8 @@ const g_Client = new Client({
 	partials: [Partials.Channel]
 });
 
-ScenarioManager.init(g_Client);
 DataStorage.init("users-db.json", 1);
+ScenarioManager.init(g_Client);
 
 // Client event hooks
 // =============================================================================
@@ -43,3 +43,4 @@ await Commander.registerCommands();
 // Start the client
 // =============================================================================
 g_Client.login(process.env.DISCORD_TOKEN);
+
