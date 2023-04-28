@@ -1,8 +1,8 @@
-import { Scenario } from "../Scenario";
+import { Scenario } from "../Scenario.js";
 import { Channel, Client } from "discord.js";
 import { setTimeout } from "timers/promises";
 
-export default class Timer implements Scenario {
+export default class Timer extends Scenario {
 
 	end = null;
 
@@ -13,9 +13,5 @@ export default class Timer implements Scenario {
 	shutdown() {
 
 	}
-
-	isPermanent() {
-		return false;
-	};
 	
 }

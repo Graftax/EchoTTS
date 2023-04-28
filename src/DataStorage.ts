@@ -1,7 +1,7 @@
 import low from 'lowdb';
 import FileSync from 'lowdb/adapters/FileSync.js';
 
-type PropValue = boolean|string|number|null;
+export type PropValue = boolean|string|number|object;
 
 export default class DataStorage {
 
@@ -65,9 +65,9 @@ export default class DataStorage {
 
 	}
 
-	setAll(id: string, toSet: object) {
+	// setAll(id: string, toSet: object) {
 
-	}
+	// }
 }
 
 let Singleton = new DataStorage();

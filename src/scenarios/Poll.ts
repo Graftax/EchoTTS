@@ -1,21 +1,43 @@
-import { Scenario } from "../Scenario";
+import { Scenario } from "../Scenario.js";
 import { Channel, Client } from "discord.js";
-import { Singleton as DataStorage } from "../DataStorage.js";
 
-export default class Poll implements Scenario {
+// https://developers.themoviedb.org/3/getting-started/authentication
+// https://developers.themoviedb.org/3/search/search-tv-shows
 
-	end = null;
+// Create Poll
+// Creator can add or remove Nominations
+// Open Nominations - Time is set for this to end
+// Nominations End and Polling Begins
+// Polling Ends and Result is Announced
+
+enum State {
+	Nominating,
+	Voting,
+	Closed,
+}
+
+export default class Poll extends Scenario {
+
+	private _channel: Channel = null;
+	private _client: Client = null;
+	private _state = State.Nominating;
 
 	init(channel: Channel, client: Client) {
-
+		this._channel = channel;
+		this._client = client;
 	}
 
 	shutdown() {
 	
 	}
 
-	isPermanent() {
+	isPersistant() {
 		return true;
 	}
 	
+
+	addNominee(title: string, imgUrl: string, url: string) {
+
+	}
+
 }

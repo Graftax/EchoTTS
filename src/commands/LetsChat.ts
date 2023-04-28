@@ -1,6 +1,6 @@
 import { SlashCommandBuilder } from "discord.js";
 import { Command } from "../Commander.js";
-import { Singleton as ScenarioManager } from "../Scenario.js";
+import { Singleton as ScenarioManager } from "../ScenarioManager.js";
 import Chatbot from "../scenarios/Chatbot.js";
 
 export default {

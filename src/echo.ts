@@ -5,7 +5,7 @@ if (process.env.NODE_ENV !== 'production')
 import { Client, Events, GatewayIntentBits, Partials } from 'discord.js';
 import { Singleton as Commander } from './Commander.js';
 import { Singleton as DataStorage } from './DataStorage.js';
-import { Singleton as ScenarioManager } from './Scenario.js';
+import { Singleton as ScenarioManager } from './ScenarioManager.js';
 
 // Construct Core Classes
 // =============================================================================
@@ -38,7 +38,7 @@ g_Client.on(Events.InteractionCreate, async (interaction) => {
 	Commander.exec(interaction);
 });
 
-await Commander.registerCommands();
+Commander.registerCommands();
 
 // Start the client
 // =============================================================================

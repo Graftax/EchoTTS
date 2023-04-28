@@ -1,6 +1,6 @@
 import { Channel, SlashCommandBuilder, TextChannel } from "discord.js";
 import { Command } from "../Commander.js";
-import { Singleton as ScenarioManager } from "../Scenario.js";
+import { Singleton as ScenarioManager } from "../ScenarioManager.js";
 import TextToSpeech from "../scenarios/texttospeech.js";
 
 function isTextChannel(channel: Channel): channel is TextChannel {

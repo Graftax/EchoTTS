@@ -1,12 +1,11 @@
-import { Scenario } from "../Scenario";
-import {AxiosResponse} from "axios";
+import { Scenario } from "../Scenario.js";
+import {AxiosResponse} from "openai/node_modules/axios";
 import { Channel, Client, Events, Message, TextChannel } from "discord.js";
 import fs from "fs";
 import { Configuration, OpenAIApi, ChatCompletionRequestMessage, ChatCompletionRequestMessageRoleEnum, CreateCompletionResponse } from "openai";
 
-export default class Chatbot implements Scenario {
+export default class Chatbot extends Scenario {
 
-	end = null;
 	_channel: TextChannel = null;
 	_client: Client = null;
 	_messages = new Array<Message>();
@@ -33,10 +32,6 @@ export default class Chatbot implements Scenario {
 
 	shutdown() {
 		this._client.removeListener(Events.MessageCreate, this.onMessageCreate);
-	}
-
-	isPermanent() {
-		return false;
 	}
 
 	getPromptString(): string {
