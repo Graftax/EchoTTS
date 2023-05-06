@@ -1,8 +1,7 @@
 import { Scenario } from "../Scenario.js";
 import { Channel, Client } from "discord.js";
 
-// https://developers.themoviedb.org/3/getting-started/authentication
-// https://developers.themoviedb.org/3/search/search-tv-shows
+
 
 // Create Poll
 // Creator can add or remove Nominations

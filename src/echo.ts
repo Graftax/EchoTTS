@@ -6,6 +6,7 @@ import { Client, Events, GatewayIntentBits, Partials } from 'discord.js';
 import { Singleton as Commander } from './Commander.js';
 import { Singleton as DataStorage } from './DataStorage.js';
 import { Singleton as ScenarioManager } from './ScenarioManager.js';
+import { Singleton as MovieDBProvider } from './MovieDBProvider.js';
 
 // Construct Core Classes
 // =============================================================================
@@ -20,6 +21,7 @@ const g_Client = new Client({
 	partials: [Partials.Channel]
 });
 
+await MovieDBProvider.init();
 DataStorage.init("users-db.json", 1);
 ScenarioManager.init(g_Client);
 
