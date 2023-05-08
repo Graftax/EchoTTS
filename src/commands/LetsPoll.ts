@@ -1,15 +1,8 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, InteractionResponse, SlashCommandBuilder } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, CommandInteraction, InteractionResponse, SlashCommandBuilder, SlashCommandSubcommandBuilder } from "discord.js";
 import { Singleton as MovieDBProvider, PosterSize, TVResult } from "../MovieDBProvider.js";
 import { Command } from "../Commander";
-
-let command = new SlashCommandBuilder();
-command.setName("lets-poll");
-command.setDescription("Create and manage polls.")
-
-command.addStringOption((option) => {
-	return option.setName("nominate")
-		.setDescription("What title to search for.");
-});
+import { Singleton as ScenarioManager } from "../ScenarioManager.js";
+import Poll from "../scenarios/Poll.js";
 
 // https://developers.themoviedb.org/3/getting-started/authentication
 // https://developers.themoviedb.org/3/search/search-tv-shows
@@ -52,7 +45,8 @@ function createNominationMessage(title: string, imgUrl: string) {
 
 interface NominationState {
 	index: number,
-	results: Array<TVResult>
+	results: Array<TVResult>,
+	poll: Poll
 }
 
 function respondToNomination(response: InteractionResponse<boolean>, userID: string, name: string, posterPath: string, state: NominationState) {
@@ -63,25 +57,37 @@ function respondToNomination(response: InteractionResponse<boolean>, userID: str
 
 		filter: (i) => { return i.user.id == userID; }}).then((response) => {
 
-			if(response.customId == "cmd-prev") {
-				state.index = Math.max(0, state.index - 1);
-			}
-
-			if(response.customId == "cmd-cancel") {
-				response.reply("Canceled.");
-				response.message.delete();
-			}
-
-			if(response.customId == "cmd-nom") {
-				// TODO: This is where we submit the nomination.
-			}
-
 			if(response.customId == "cmd-next") {
 				state.index = Math.min(state.results.length - 1, state.index + 1);
 			}
 
+			if(response.customId == "cmd-prev") {
+				state.index = Math.max(0, state.index - 1);
+			}
+
+			let id = state.results[state.index].id;
 			name = state.results[state.index].name;
 			posterPath = state.results[state.index].poster_path;
+
+			if(response.customId == "cmd-cancel") {
+				response.reply({ content: "Canceled nomination.", ephemeral: true});
+				response.message.delete();
+				return;
+			}
+
+			if(response.customId == "cmd-nom") {
+
+				state.poll.addNominee(id.toString(), {
+					name: name,
+					img_url: MovieDBProvider.createImageURL(posterPath, new PosterSize(3)),
+					url: "https://graftax.net",
+					nominator: response.user.id
+				});
+
+				response.reply({ content: `Submitted nomination for ${name}`, ephemeral: true});
+				response.message.delete();
+				return;
+			}
 
 			response.reply(createNominationMessage(
 				name,
@@ -95,31 +101,87 @@ function respondToNomination(response: InteractionResponse<boolean>, userID: str
 		});
 }
 
+let command = new SlashCommandBuilder();
+command.setName("poll");
+command.setDescription("Create and manage polls.")
+
+// Start =======================================================================
+command.addSubcommand((subCommand) => {
+	return subCommand.setName("start")
+		.setDescription("Begins a poll in this channel.");
+});
+
+function runSubcommandStart(interaction: CommandInteraction) {
+	ScenarioManager.startScenario(interaction.channel, new Poll());
+}
+
+// Nominate ====================================================================
+command.addSubcommand((subCommand) => {
+	return subCommand.setName("nominate")
+	.setDescription("Nominate a show to be in the poll.")
+
+	.addStringOption((option) => {
+	 	return option.setName("title")
+		.setDescription("The name of the show to search for.")
+	 	.setRequired(true);
+	 });
+	
+	});
+
+function runSubcommandNominate(interaction: CommandInteraction, pollScenario: Poll) {
+
+	let title = interaction.options.get("title", true);
+	MovieDBProvider.searchTV(title.value as string).then((value) => {
+
+		if(value.results.length <= 0)
+			return;
+
+		let result = value.results[0];
+		
+		interaction.reply(createNominationMessage(
+			result.name,
+			MovieDBProvider.createImageURL(result.poster_path, new PosterSize(3))
+		)).then((response) => {
+
+			respondToNomination(response, interaction.user.id, result.name, result.poster_path, {
+				index: 0,
+				results: value.results,
+				poll: pollScenario
+			});
+
+		});
+		
+	});
+
+}
+//==============================================================================
+
 export default {
 	slashcommand: command,
 	execute(interaction) {
 
-		let title = interaction.options.get("nominate");
-		MovieDBProvider.searchTV(title.value as string).then((value) => {
+		// We have to narrow the type
+		// https://www.reddit.com/r/Discordjs/comments/w3bhv0/interactionoptionsgetsubcommand_wont_work/
+		if(!interaction.isChatInputCommand())
+			return;
 
-			if(value.results.length <= 0)
+		let pollScenario = ScenarioManager.getScenario(interaction.channel, Poll.name) as Poll;
+
+		if(interaction.options.getSubcommand() == "start") {
+
+			// If a poll already exists, then do not create another.
+			if(pollScenario)
 				return;
 
-			let results = value.results.splice(0, 10);
-			let resultIndex = 0;
-			let result = results[resultIndex];
-			
-			interaction.reply(createNominationMessage(
-				result.name,
-				MovieDBProvider.createImageURL(result.poster_path, new PosterSize(3))
-			)).then((response) => {
-				respondToNomination(response, interaction.user.id, result.name, result.poster_path, {
-					index: 0,
-					results: results
-				});
-			});
-			
-		});
+			runSubcommandStart(interaction);
+			return;
+		}
+
+		if(interaction.options.getSubcommand() == "nominate") {
+			runSubcommandNominate(interaction, pollScenario);
+			return;
+		}
+
 
 	}
 } as Command;
