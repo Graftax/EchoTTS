@@ -182,6 +182,5 @@ export default {
 			return;
 		}
 
-
 	}
 } as Command;

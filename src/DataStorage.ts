@@ -3,6 +3,13 @@ import FileSync from 'lowdb/adapters/FileSync.js';
 
 export type PropValue = boolean|string|number|object;
 
+const DataContainerName = "items";
+
+interface Item {
+	id: string,
+	props: Object
+}
+
 export default class DataStorage {
 
 	private m_version: number;
@@ -18,56 +25,101 @@ export default class DataStorage {
 		this.m_version = version;
 		this.m_adapter = new FileSync(filepath);
 		this.m_db = low(this.m_adapter);
-		this.m_db.defaults({ entities: [] }).write();
+
+		let defaultStructure = {};
+		// Add via index so we can use the name constant.
+		defaultStructure[DataContainerName] = [];
+		this.m_db.defaults(defaultStructure).write();
 	}
 
-	private provideEntity(id: string) :void {
+	getItem(id: string) : Object {
+
+		const item = this.m_db.get(DataContainerName)
+			.find({ id: id })
+			.value() as Item;
+
+		if(!item) return undefined;
+
+		return item.props;
+	}
+
+	getProperty(id: string, propName: string, defaultValue = undefined) : PropValue {
+
+		const props = this.getItem(id) as Item;
+		if(!props) return defaultValue;
 		
-		if(!this.m_db.get("entities").find({ "id": id }).value()) {
+		if(props.hasOwnProperty(propName))
+			return props[propName];
 
-			this.m_db.get("entities").push({ 
-				"id": id, 
-				"version": this.m_version
-			}).write();
-
-		}
+		return defaultValue;
 	}
 
-	private applyDefaults(target: object) : object {
-		return Object.assign({}, target);
+	setItem(id: string, props: Object) {
+
+		let item = this.m_db.get(DataContainerName)
+			.find({ id: id })
+			.value();
+
+		if(!item)
+			this.m_db.get(DataContainerName)
+				.push({ id: id, props: {}})
+				.write();
+
+		this.m_db.get(DataContainerName)
+			.find({id: id})
+			.set<Object>("props", props)
+			.write();
 	}
 
-	get(id: string, propName: string) : PropValue {
+	setProperty(id: string, propName: string, value: PropValue) {
 
-		this.provideEntity(id);
+		let item = this.m_db.get(DataContainerName)
+			.find({ id: id })
+			.value();
 
-		const ent = this.m_db.get("entities").find({ "id": id }).value();
-		if(!ent) return null;
-		
-		if(ent[propName] != undefined)
-			return ent[propName];
+		if(!item)
+			this.m_db.get(DataContainerName)
+				.push({ id: id, props: {}})
+				.write();
 
-		return this.applyDefaults({})[propName];
-
+		this.m_db.get(DataContainerName)
+			.find({id: id})
+			.set<PropValue>(`props.${propName}`, value)
+			.write();
 	}
 
-	getAll(id: string) : object {
+	deleteItem(id: string) {
 
-		this.provideEntity(id);
-		return this.applyDefaults(this.m_db.get("entities").find({ "id": id }).value());
-
+		this.m_db.get(DataContainerName)
+			.remove({id: id})
+			.write();
 	}
 
-	set(id: string, propName: string, value: PropValue) : void {
-		
-		this.provideEntity(id);
-		this.m_db.get("entities").find({ "id": id }).set<PropValue>(propName, value).write();
+	deleteProperty(id: string, propName: string) {
 
+		this.m_db.get(DataContainerName)
+			.find({id: id})
+			.unset(`props.${propName}`)
+			.write();
 	}
 
-	// setAll(id: string, toSet: object) {
+	// Returns a map of items with IDs that start with idFragment
+	findItemsByID(idFragment: string) : Map<string, Object> {
 
-	// }
+		let outMap = new Map<string, Object>();
+
+		let foundItems = this.m_db.get(DataContainerName)
+			.filter((value: Item, index, collection) => {
+				return value.id.startsWith(idFragment);
+			})
+			.value() as Array<Item>;
+
+		for(let currItem of foundItems)
+			outMap.set(currItem.id, currItem.props);
+
+		return outMap;
+	}
+
 }
 
 let Singleton = new DataStorage();

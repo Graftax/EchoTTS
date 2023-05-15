@@ -3,23 +3,27 @@ import { Singleton as DataStorage } from "./DataStorage.js";
 import { Scenario } from "./Scenario.js";
 import ScenarioIndex from "./index/scenarios.js";
 
-function getScenarioID(channelID: string, toSave: Scenario) {
+function createScenarioHandle(channelID: string, toSave: Scenario) {
 	return `${channelID}!${toSave.constructor.name}`;
 }
 
+function extractFromHandle(input: string) {
+	
+	let res = /(\w*)!(\w*)$/.exec(input);
+	if(res.length < 3)
+		return undefined;
+
+	return { channelID: res[1], className: res[2] };
+}
+
+const ScenarioPath = "system/scenarios";
 function getScenarioDBPath(channelID: string, toSave: Scenario) {
-	return `system/scenarios/${getScenarioID(channelID, toSave)}`;
+	return `${ScenarioPath}/${createScenarioHandle(channelID, toSave)}`;
 }
 
 export class ScenarioManager {
 
 	private _client: Client = null;
-
-	// TODO: Refactor this so that the key is a compound string
-	// that maps to each individual scenario. It can even be 
-	// like an isntance id. {channelid}!{classname}
-	// Should I support multiple of the same scenario in the 
-	// same channel? Probably Not.
 	private _scenarios: Map<string, Array<Scenario>> = new Map();
 
 	constructor() {
@@ -30,23 +34,21 @@ export class ScenarioManager {
 
 		this._client = client;
 
-		let scenarioData = DataStorage.getAll("system/scenarios");
+		let persistantScenarios = DataStorage.findItemsByID("system/scenarios");
 
-		for(let propName in scenarioData) {
+		persistantScenarios.forEach((value, key) => {
 
-			let split = propName.split("!");
-			if(split.length != 2)
-				continue;
+			let {channelID, className} = extractFromHandle(key);
 
 			client.on(Events.ClientReady, (client) => {
 
-				client.channels.fetch(split[0]).then((channel) => {
-					this.startScenario(channel, new ScenarioIndex[split[1]]);
+				client.channels.fetch(channelID).then((channel) => {
+					this.startScenario(channel, new ScenarioIndex[className]);
 				});
 
 			});
 
-		}
+		});
 	}
 
 	// Puts scenario in to map
@@ -86,26 +88,27 @@ export class ScenarioManager {
 		console.log(`Starting ${toStart.constructor.name} in ${channel}`);
 		this.pushScenario(channel.id, toStart);
 
-		if(toStart.isPersistant())
-			DataStorage.set(getScenarioDBPath(channel.id, toStart), "persist", true);
+		const newScenarioPath = getScenarioDBPath(channel.id, toStart);
+
+		if(toStart.isPersistant()) {
+			let item = DataStorage.getItem(newScenarioPath);
+			DataStorage.setItem(newScenarioPath, item != undefined ? item : {});
+		}
 
 		toStart.end = () => {
 			console.log(`Ending ${toStart.constructor.name} in ${channel}`);
 			toStart.shutdown();
-
-			if(toStart.isPersistant())
-				DataStorage.set(getScenarioDBPath(channel.id, toStart), "persist", false);
-
+			
 			this.removeScenario(channel.id, toStart);
-			DataStorage.set(getScenarioDBPath(channel.id, toStart), "data", {});
+			DataStorage.deleteItem(newScenarioPath);
 		}; // end = ()
 
 		toStart.save = (toSave) => {
-			DataStorage.set(getScenarioDBPath(channel.id, toStart), "data", toSave);
+			DataStorage.setProperty(newScenarioPath, "data", toSave);
 		}; // save = (toSave)
 
 		toStart.load = () => {
-			return DataStorage.get(getScenarioDBPath(channel.id, toStart), "data");
+			return DataStorage.getProperty(newScenarioPath, "data", {});
 		}; // load = ()
 
 		toStart.init(channel, this._client);

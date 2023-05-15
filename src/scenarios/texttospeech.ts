@@ -16,13 +16,14 @@ interface SpeakItem {
 	options: VoiceOptions;
 }
 
+// TODO: Test settings again.
 export function setGender(interaction: CommandInteraction) {
 
 	let option = interaction.options.get("gender", false)
 	if(!option)
 		return;
 
-	DataStorage.set(interaction.user.id, "gender", option.value);
+	DataStorage.setProperty(`tts/${interaction.user.id}`, "gender", option.value);
 
 }
 
@@ -32,7 +33,7 @@ export function setLanguage(interaction: CommandInteraction) {
 	if(!option)
 		return;                                                                                        
 
-	DataStorage.set(interaction.user.id, "language", option.value);
+	DataStorage.setProperty(`tts/${interaction.user.id}`, "language", option.value);
 
 }
 
@@ -47,14 +48,13 @@ function getDefaultSettingsObject(): object {
 
 export function getSettings(userID: string) : object {
 
-	let settings = DataStorage.getAll(userID);
+	let settings = DataStorage.getItem(`tts/${userID}`);
 	return Object.assign(getDefaultSettingsObject(), settings);
 
 }
 
 export default class TextToSpeech extends Scenario {
 
-	end = null;
 	private _channel: Channel;
 	private _client: Client;
 	private _connection: DSVoice.VoiceConnection = null;

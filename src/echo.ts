@@ -22,7 +22,7 @@ const g_Client = new Client({
 });
 
 await MovieDBProvider.init();
-DataStorage.init("users-db.json", 1);
+DataStorage.init("db.json", 1);
 ScenarioManager.init(g_Client);
 
 // Client event hooks

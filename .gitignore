@@ -2,6 +2,7 @@ dist/
 node_modules/
 config.json
 users-db.json
+db.json
 .env
 res/introduction.txt
 src/index/
