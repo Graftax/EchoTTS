@@ -32,6 +32,9 @@ export default class Poll extends Scenario {
 	init(channel: Channel, client: Client) {
 		this._channel = channel;
 		this._client = client;
+
+		let propValue = this.load();
+		this._nominees = new Map(Object.entries(propValue));
 	}
 
 	shutdown() {
@@ -47,11 +50,11 @@ export default class Poll extends Scenario {
 		if(this._nominees.has(uid))
 			return false;
 
-		for(let [key, value] of this._nominees) {
+		// for(let [key, value] of this._nominees) {
 
-			if(value.nominator == toAdd.nominator)
-				return false;
-		}
+		// 	if(value.nominator == toAdd.nominator)
+		// 		return false;
+		// }
 
 		return true;
 	}
@@ -62,10 +65,19 @@ export default class Poll extends Scenario {
 			return;
 
 		this._nominees.set(uid, toAdd);
+
+		this.save(Object.fromEntries(this._nominees));
 	}
 
 	removeNominee(uid: string) {
 
+		this._nominees.delete(uid);
+		this.save(Object.fromEntries(this._nominees));
+
+	}
+
+	getNomineeList() : { [key: string]: Nominee } {
+		return Object.fromEntries(this._nominees);
 	}
 
 }

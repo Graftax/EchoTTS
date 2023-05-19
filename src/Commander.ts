@@ -53,6 +53,7 @@ export default class Commander {
 		if(cmdIaction == null)
 			return false;
 
+		console.log(`Received command '${iaction.commandName}' from ${iaction.user.username}`);
 		let currCmd = this.m_commandMap.get(iaction.commandName);
 
 		if(!currCmd) {

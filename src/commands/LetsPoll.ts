@@ -93,9 +93,14 @@ function respondToNomination(response: InteractionResponse<boolean>, userID: str
 				name,
 				MovieDBProvider.createImageURL(posterPath, new PosterSize(3))
 
-			)).then((nextResponse) => {
-				response.message.delete();
-				respondToNomination(nextResponse, userID, name, posterPath, state);
+			)).then((replyResponse) => {
+
+				return Promise.all([response.message.delete(), replyResponse]);
+
+			}).then(([deleteResponse, replyResponse]) => {
+
+				respondToNomination(replyResponse, userID, name, posterPath, state);
+
 			});
 
 		});
@@ -112,6 +117,13 @@ command.addSubcommand((subCommand) => {
 });
 
 function runSubcommandStart(interaction: CommandInteraction) {
+
+	let pollScenario = ScenarioManager.getScenario(interaction.channel, Poll.name) as Poll;
+
+	// If a poll already exists, then do not create another.
+	if(pollScenario)
+		return;
+
 	ScenarioManager.startScenario(interaction.channel, new Poll());
 }
 
@@ -154,6 +166,32 @@ function runSubcommandNominate(interaction: CommandInteraction, pollScenario: Po
 	});
 
 }
+
+// Start =======================================================================
+command.addSubcommand((subCommand) => {
+	return subCommand.setName("list")
+		.setDescription("Lists the nominations.");
+});
+
+function runSubcommandList(interaction: CommandInteraction, pollScenario: Poll) {
+
+	let items = pollScenario.getNomineeList();
+	let content = "Nominees: \n";
+
+	let place = 0;
+	for(let uid in items) {
+		let currItem = items[uid];
+		place++;
+		content += `${place}. ${currItem.name}\n`;
+	}
+
+	interaction.reply({
+		content: content, 
+		ephemeral: true,
+	});
+	
+}
+
 //==============================================================================
 
 export default {
@@ -166,21 +204,18 @@ export default {
 			return;
 
 		let pollScenario = ScenarioManager.getScenario(interaction.channel, Poll.name) as Poll;
+		
+		if(interaction.options.getSubcommand() == "start" && !pollScenario)
+			return runSubcommandStart(interaction);
 
-		if(interaction.options.getSubcommand() == "start") {
+		if(!pollScenario)
+			return interaction.reply({content: "No poll was found in this channel.", ephemeral: true});
 
-			// If a poll already exists, then do not create another.
-			if(pollScenario)
-				return;
+		if(interaction.options.getSubcommand() == "nominate")
+			return runSubcommandNominate(interaction, pollScenario);
 
-			runSubcommandStart(interaction);
-			return;
-		}
-
-		if(interaction.options.getSubcommand() == "nominate") {
-			runSubcommandNominate(interaction, pollScenario);
-			return;
-		}
-
+		if(interaction.options.getSubcommand() == "list")
+			return runSubcommandList(interaction, pollScenario);
+			
 	}
 } as Command;
