@@ -54,56 +54,57 @@ function respondToNomination(response: InteractionResponse<boolean>, userID: str
 	// TODO: Might need to add a try-catch around this component, it might be timing out
 	// when the nomination is canceled.
 	response.awaitMessageComponent({
+		filter: (i) => { return i.user.id == userID; }
+	}).then((response) => {
 
-		filter: (i) => { return i.user.id == userID; }}).then((response) => {
+		if(response.customId == "cmd-next") {
+			state.index = Math.min(state.results.length - 1, state.index + 1);
+		}
 
-			if(response.customId == "cmd-next") {
-				state.index = Math.min(state.results.length - 1, state.index + 1);
-			}
+		if(response.customId == "cmd-prev") {
+			state.index = Math.max(0, state.index - 1);
+		}
 
-			if(response.customId == "cmd-prev") {
-				state.index = Math.max(0, state.index - 1);
-			}
+		let id = state.results[state.index].id;
+		name = state.results[state.index].name;
+		posterPath = state.results[state.index].poster_path;
 
-			let id = state.results[state.index].id;
-			name = state.results[state.index].name;
-			posterPath = state.results[state.index].poster_path;
+		if(response.customId == "cmd-cancel") {
+			response.reply({ content: "Canceled nomination.", ephemeral: true});
+			response.message.delete();
+			return;
+		}
 
-			if(response.customId == "cmd-cancel") {
-				response.reply({ content: "Canceled nomination.", ephemeral: true});
-				response.message.delete();
-				return;
-			}
+		if(response.customId == "cmd-nom") {
 
-			if(response.customId == "cmd-nom") {
-
-				state.poll.addNominee(id.toString(), {
-					name: name,
-					img_url: MovieDBProvider.createImageURL(posterPath, new PosterSize(3)),
-					url: "https://graftax.net",
-					nominator: response.user.id
-				});
-
-				response.reply({ content: `Submitted nomination for ${name}`, ephemeral: true});
-				response.message.delete();
-				return;
-			}
-
-			response.reply(createNominationMessage(
-				name,
-				MovieDBProvider.createImageURL(posterPath, new PosterSize(3))
-
-			)).then((replyResponse) => {
-
-				return Promise.all([response.message.delete(), replyResponse]);
-
-			}).then(([deleteResponse, replyResponse]) => {
-
-				respondToNomination(replyResponse, userID, name, posterPath, state);
-
+			state.poll.addNominee(id.toString(), {
+				name: name,
+				img_url: MovieDBProvider.createImageURL(posterPath, new PosterSize(3)),
+				url: "https://graftax.net",
+				nominator: response.user.id
 			});
 
+			response.reply({ content: `Submitted nomination for ${name}`, ephemeral: true});
+			response.message.delete();
+			return;
+		}
+
+		response.reply(createNominationMessage(
+			name,
+			MovieDBProvider.createImageURL(posterPath, new PosterSize(3))
+
+		)).then((replyResponse) => {
+
+			return Promise.all([response.message.delete(), replyResponse]);
+
+		}).then(([deleteResponse, replyResponse]) => {
+
+			respondToNomination(replyResponse, userID, name, posterPath, state);
+
 		});
+
+	});
+	
 }
 
 let command = new SlashCommandBuilder();
