@@ -73,7 +73,7 @@ export class ScenarioManager {
 
 		this._scenarios.set(channelID, filtered);
 
-		if(this._scenarios[channelID].length <= 0)
+		if(this._scenarios.get(channelID).length <= 0)
 			this._scenarios.delete(channelID);
 	}
 

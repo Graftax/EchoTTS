@@ -8,6 +8,7 @@ import Poll from "../scenarios/Poll.js";
 // https://developers.themoviedb.org/3/search/search-tv-shows
 // Use v4-api https://github.com/thetvdb/v4-api
 
+// TODO:  Create loop message for voting similar to nomination.
 function createNominationMessage(title: string, imgUrl: string) {
 
 	const row = new ActionRowBuilder<ButtonBuilder>();
@@ -113,11 +114,24 @@ command.setDescription("Create and manage polls.")
 
 // Start =======================================================================
 command.addSubcommand((subCommand) => {
-	return subCommand.setName("start")
-		.setDescription("Begins a poll in this channel.");
+	return subCommand.setName("create")
+		.setDescription("Begins a poll in this channel.")
+
+		.addNumberOption((option) => {
+			return option.setName("hours-before-vote")
+				.setDescription("How many hours until voting begins.")
+				.setRequired(true);
+		})
+
+		.addNumberOption((option) => {
+			return option.setName("hours-spent-voting")
+				.setDescription("How many hours will be allowed for voting.")
+				.setRequired(true);
+		})
+
 });
 
-function runSubcommandStart(interaction: CommandInteraction) {
+function runSubcommandCreate(interaction: CommandInteraction) {
 
 	let pollScenario = ScenarioManager.getScenario(interaction.channel, Poll.name) as Poll;
 
@@ -125,7 +139,15 @@ function runSubcommandStart(interaction: CommandInteraction) {
 	if(pollScenario)
 		return;
 
-	ScenarioManager.startScenario(interaction.channel, new Poll());
+	let beforeValue = interaction.options.get("hours-before-vote");
+	let spentValue = interaction.options.get("hours-spent-voting");
+
+	pollScenario = new Poll(
+		beforeValue ? beforeValue.value as number : null,
+		spentValue ? spentValue.value as number : null
+	);
+
+	ScenarioManager.startScenario(interaction.channel, pollScenario);
 }
 
 // Nominate ====================================================================
@@ -139,7 +161,7 @@ command.addSubcommand((subCommand) => {
 	 	.setRequired(true);
 	 });
 	
-	});
+});
 
 function runSubcommandNominate(interaction: CommandInteraction, pollScenario: Poll) {
 
@@ -168,7 +190,7 @@ function runSubcommandNominate(interaction: CommandInteraction, pollScenario: Po
 
 }
 
-// Start =======================================================================
+// list ========================================================================
 command.addSubcommand((subCommand) => {
 	return subCommand.setName("list")
 		.setDescription("Lists the nominations.");
@@ -206,8 +228,8 @@ export default {
 
 		let pollScenario = ScenarioManager.getScenario(interaction.channel, Poll.name) as Poll;
 		
-		if(interaction.options.getSubcommand() == "start" && !pollScenario)
-			return runSubcommandStart(interaction);
+		if(interaction.options.getSubcommand() == "create" && !pollScenario)
+			return runSubcommandCreate(interaction);
 
 		if(!pollScenario)
 			return interaction.reply({content: "No poll was found in this channel.", ephemeral: true});
