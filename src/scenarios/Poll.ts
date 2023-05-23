@@ -205,4 +205,10 @@ export default class Poll extends Scenario {
 
 	}
 
+	setVote(userID: string, ranks: Array<string>) {
+
+		this._votes.set(userID, ranks);
+
+	}
+
 }
