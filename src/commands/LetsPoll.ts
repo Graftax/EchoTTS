@@ -1,15 +1,19 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, CommandInteraction, InteractionResponse, SlashCommandBuilder, SlashCommandSubcommandBuilder } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, CommandInteraction, InteractionReplyOptions, InteractionResponse, SlashCommandBuilder, SlashCommandSubcommandBuilder } from "discord.js";
 import { Singleton as MovieDBProvider, PosterSize, TVResult } from "../MovieDBProvider.js";
 import { Command } from "../Commander";
 import { Singleton as ScenarioManager } from "../ScenarioManager.js";
 import Poll from "../scenarios/Poll.js";
+import IterativeSort from "../IterativeSort.js";
+import { MappedInteractionTypes, MessageComponentType } from "discord.js";
+import { MessageComponentInteraction } from "discord.js";
+import { MessagePayload } from "discord.js";
 
 // https://developers.themoviedb.org/3/getting-started/authentication
 // https://developers.themoviedb.org/3/search/search-tv-shows
 // Use v4-api https://github.com/thetvdb/v4-api
 
 // TODO:  Create loop message for voting similar to nomination.
-function createNominationMessage(title: string, imgUrl: string) {
+function createNominationMessage(title: string, imgUrl: string): InteractionReplyOptions {
 
 	const row = new ActionRowBuilder<ButtonBuilder>();
 
@@ -44,68 +48,25 @@ function createNominationMessage(title: string, imgUrl: string) {
 
 }
 
-interface NominationState {
-	index: number,
-	results: Array<TVResult>,
-	poll: Poll
-}
+type InteractionProcessor = (response: MessageComponentInteraction) => InteractionReplyOptions;
 
-function respondToNomination(response: InteractionResponse<boolean>, userID: string, name: string, posterPath: string, state: NominationState) {
+async function interactionLoop(response: InteractionResponse<boolean>, onMessage: InteractionProcessor) {
 
-	// TODO: Might need to add a try-catch around this component, it might be timing out
-	// when the nomination is canceled.
-	response.awaitMessageComponent({
-		filter: (i) => { return i.user.id == userID; }
-	}).then((response) => {
-
-		if(response.customId == "cmd-next") {
-			state.index = Math.min(state.results.length - 1, state.index + 1);
-		}
-
-		if(response.customId == "cmd-prev") {
-			state.index = Math.max(0, state.index - 1);
-		}
-
-		let id = state.results[state.index].id;
-		name = state.results[state.index].name;
-		posterPath = state.results[state.index].poster_path;
-
-		if(response.customId == "cmd-cancel") {
-			response.reply({ content: "Canceled nomination.", ephemeral: true});
-			response.message.delete();
-			return;
-		}
-
-		if(response.customId == "cmd-nom") {
-
-			state.poll.addNominee(id.toString(), {
-				name: name,
-				img_url: MovieDBProvider.createImageURL(posterPath, new PosterSize(3)),
-				url: "https://graftax.net",
-				nominator: response.user.id
-			});
-
-			response.reply({ content: `Submitted nomination for ${name}`, ephemeral: true});
-			response.message.delete();
-			return;
-		}
-
-		response.reply(createNominationMessage(
-			name,
-			MovieDBProvider.createImageURL(posterPath, new PosterSize(3))
-
-		)).then((replyResponse) => {
-
-			return Promise.all([response.message.delete(), replyResponse]);
-
-		}).then(([deleteResponse, replyResponse]) => {
-
-			respondToNomination(replyResponse, userID, name, posterPath, state);
-
-		});
-
+	let originResponse = await response.awaitMessageComponent({
+		//filter: (i) => { return i.user.id == userID; }
 	});
-	
+
+	let newMessage = onMessage(originResponse);
+
+	if(!newMessage)
+		return;
+
+	let replyResponse = await originResponse.reply(newMessage);
+
+	await originResponse.message.delete()
+
+	if(newMessage?.components?.length > 0)
+		interactionLoop(replyResponse, onMessage);
 }
 
 let command = new SlashCommandBuilder();
@@ -163,31 +124,61 @@ command.addSubcommand((subCommand) => {
 	
 });
 
-function runSubcommandNominate(interaction: CommandInteraction, pollScenario: Poll) {
+async function runSubcommandNominate(interaction: CommandInteraction, pollScenario: Poll) {
 
 	let title = interaction.options.get("title", true);
-	MovieDBProvider.searchTV(title.value as string).then((value) => {
+	let value = await MovieDBProvider.searchTV(title.value as string);
 
-		if(value.results.length <= 0)
-			return;
+	if(value.results.length <= 0)
+		return;
 
-		let result = value.results[0];
-		
-		interaction.reply(createNominationMessage(
-			result.name,
-			MovieDBProvider.createImageURL(result.poster_path, new PosterSize(3))
-		)).then((response) => {
+	let result = value.results[0];
+	
+	let response = await interaction.reply(createNominationMessage(
+		result.name,
+		MovieDBProvider.createImageURL(result.poster_path, new PosterSize(3))
+	))
 
-			respondToNomination(response, interaction.user.id, result.name, result.poster_path, {
-				index: 0,
-				results: value.results,
-				poll: pollScenario
+	let state = {
+		index: 0,
+		results: value.results,
+		poll: pollScenario
+	};
+
+	interactionLoop(response, (currResponse) => {
+
+		if(currResponse.customId == "cmd-cancel")
+			return {content: "Canceled nomination.", ephemeral: true};
+
+		if(currResponse.customId == "cmd-next")
+			state.index = Math.min(state.results.length - 1, state.index + 1);
+
+		if(currResponse.customId == "cmd-prev")
+			state.index = Math.max(0, state.index - 1);
+
+		let id = state.results[state.index].id;
+		let name = state.results[state.index].name;
+		let posterPath = state.results[state.index].poster_path;
+
+		if(currResponse.customId == "cmd-nom") {
+
+			state.poll.addNominee({
+				id: id.toString(),
+				name: name,
+				img_url: MovieDBProvider.createImageURL(posterPath, new PosterSize(3)),
+				url: "https://graftax.net",
+				nominator: currResponse.user.id
 			});
 
-		});
-		
-	});
+			return { content: `Submitted nomination for ${name}`, ephemeral: true };
+		}
 
+		return createNominationMessage(name,
+			MovieDBProvider.createImageURL(posterPath, new PosterSize(3))
+		);
+
+	});
+	
 }
 
 // list ========================================================================
@@ -202,8 +193,7 @@ function runSubcommandList(interaction: CommandInteraction, pollScenario: Poll) 
 	let content = "Nominees: \n";
 
 	let place = 0;
-	for(let uid in items) {
-		let currItem = items[uid];
+	for(let currItem of items) {
 		place++;
 		content += `${place}. ${currItem.name}\n`;
 	}
@@ -211,6 +201,30 @@ function runSubcommandList(interaction: CommandInteraction, pollScenario: Poll) 
 	interaction.reply({
 		content: content, 
 		ephemeral: true,
+	});
+	
+}
+// vote ========================================================================
+command.addSubcommand((subCommand) => {
+	return subCommand.setName("vote")
+		.setDescription("Begins your voting process in this channel.");
+});
+
+function runSubCommandVote(interaction: CommandInteraction, pollScenario: Poll) {
+
+	if(!pollScenario.isVoting())
+		return;
+
+	let nomList = pollScenario.getNomineeList();
+
+	IterativeSort(nomList, 3, (set, resolve) => {
+
+		// TODO: Create a message and then hook button callbacks in it to resolve with the correct index
+
+		
+	
+	}).then((sorted) => {
+
 	});
 	
 }
@@ -239,6 +253,9 @@ export default {
 
 		if(interaction.options.getSubcommand() == "list")
 			return runSubcommandList(interaction, pollScenario);
+
+		if(interaction.options.getSubcommand() == "vote")
+			return runSubCommandVote(interaction, pollScenario);
 			
 	}
 } as Command;

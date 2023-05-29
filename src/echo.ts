@@ -41,45 +41,9 @@ g_Client.on(Events.InteractionCreate, async (interaction) => {
 	Commander.exec(interaction);
 });
 
-interface TestFace {
-	rank: number
-}
-
-let someStuff = Array<TestFace>();
-
-for(let i = 0; i < 5; ++i) {
-
-	someStuff.push({
-		rank: i + (Math.random() * 10)
-	});
-
-}
-
-let stepCount = 0;
-IterativeSort(someStuff, 3, (set, resolve) => {
-	
-	let bestIndex = 0;
-	let bestValue = Number.MAX_VALUE;
-
-	set.forEach((currItem, index) => {
-
-		if(currItem.rank < bestValue) {
-			bestIndex = index;
-			bestValue = currItem.rank;
-		}
-
-	});
-
-	stepCount++;
-	resolve(bestIndex);
-
-}).then((sorted) => {
-	console.log(`${sorted.length}, ${stepCount}`);
-});
-
-//Commander.registerCommands();
+Commander.registerCommands();
 
 // Start the client
 // =============================================================================
-//g_Client.login(process.env.DISCORD_TOKEN);
+g_Client.login(process.env.DISCORD_TOKEN);
 

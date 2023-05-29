@@ -12,6 +12,7 @@ const hoursToMs = 3600000;
 // Add command to vote - This is gonna be a thing.
 
 export interface Nominee {
+	id: string,
 	name: string,
 	img_url: string
 	url: string,
@@ -79,7 +80,6 @@ export default class Poll extends Scenario {
 	isPersistant() {
 		return true;
 	}
-
 	private onVoteTimeout = () => {
 
 		if(this._isVoting)
@@ -126,29 +126,33 @@ export default class Poll extends Scenario {
 			this._isVoting = state.isVoting;
 	}
 
+	isVoting(): boolean {
+		return this._isVoting;
+	}
+
 	private canAddNom(uid: string, toAdd: Nominee) : boolean {
 
 		if(this._nominees.has(uid))
 			return false;
 
-		for(let [key, value] of this._nominees) {
+		// for(let [key, value] of this._nominees) {
 
-			if(value.nominator == toAdd.nominator)
-				return false;
-		}
+		// 	if(value.nominator == toAdd.nominator)
+		// 		return false;
+		// }
 
 		return true;
 	}
 
-	addNominee(uid: string, toAdd: Nominee) {
+	addNominee(toAdd: Nominee) {
 
 		if(this._isVoting)
 			return;
 
-		if(!this.canAddNom(uid, toAdd))
+		if(!this.canAddNom(toAdd.id, toAdd))
 			return;
 
-		this._nominees.set(uid, toAdd);
+		this._nominees.set(toAdd.id, toAdd);
 		this.saveState();
 
 	}
@@ -163,8 +167,8 @@ export default class Poll extends Scenario {
 
 	}
 
-	getNomineeList() : { [key: string]: Nominee } {
-		return Object.fromEntries(this._nominees);
+	getNomineeList() : Array<Nominee> {
+		return Array.from(this._nominees.values());
 	}
 
 	setVoteTime(time: Date) {
