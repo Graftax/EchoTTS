@@ -25,7 +25,7 @@ class ChainNode<ValueType> {
 	}
 }
 
-type TestFunction<T> = (set: Array<T>, resolve: (number) => void) => void;
+type TestFunction<T> = (set: Array<T>, resolve: (number: number) => void) => void;
 
 export default function IterativeSort<T>(values: Array<T>, testSize: number, testFunc: TestFunction<T>): Promise<Array<T>> {
 

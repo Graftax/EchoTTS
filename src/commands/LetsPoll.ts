@@ -73,7 +73,7 @@ let command = new SlashCommandBuilder();
 command.setName("poll");
 command.setDescription("Create and manage polls.")
 
-// Start =======================================================================
+// create ======================================================================
 command.addSubcommand((subCommand) => {
 	return subCommand.setName("create")
 		.setDescription("Begins a poll in this channel.")
@@ -109,6 +109,7 @@ function runSubcommandCreate(interaction: CommandInteraction) {
 	);
 
 	ScenarioManager.startScenario(interaction.channel, pollScenario);
+	interaction.reply(`${interaction.user.username} has created a poll in this channel.`);
 }
 
 // Nominate ====================================================================
@@ -178,7 +179,7 @@ async function runSubcommandNominate(interaction: CommandInteraction, pollScenar
 		);
 
 	});
-	
+
 }
 
 // list ========================================================================
@@ -204,29 +205,81 @@ function runSubcommandList(interaction: CommandInteraction, pollScenario: Poll) 
 	});
 	
 }
+
+// start vote ==================================================================
+command.addSubcommand((subCommand) => {
+	return subCommand.setName("start-vote")
+		.setDescription("Ends the nomination time and begins voting immediatly.");
+});
+
+function runSubCommandStartVote(interaction: CommandInteraction, pollScenario: Poll) {
+	pollScenario.setVoteTime(new Date());
+	interaction.deferReply();
+}
+
 // vote ========================================================================
 command.addSubcommand((subCommand) => {
 	return subCommand.setName("vote")
 		.setDescription("Begins your voting process in this channel.");
 });
 
-function runSubCommandVote(interaction: CommandInteraction, pollScenario: Poll) {
+async function runSubCommandVote(interaction: CommandInteraction, pollScenario: Poll) {
 
 	if(!pollScenario.isVoting())
 		return;
 
 	let nomList = pollScenario.getNomineeList();
+	let currItn: CommandInteraction | MessageComponentInteraction = interaction;
 
-	IterativeSort(nomList, 3, (set, resolve) => {
+	let sorted = await IterativeSort(nomList, 3, async (set, resolve) => {
 
-		// TODO: Create a message and then hook button callbacks in it to resolve with the correct index
+		const row = new ActionRowBuilder<ButtonBuilder>();
 
+		set.forEach((value, index) => {
+
+			row.addComponents(new ButtonBuilder()
+			.setCustomId(index.toString())
+			.setLabel(value.name)
+			.setStyle(ButtonStyle.Primary));
+
+		});
+
+		let buttonItn = await currItn.reply({
+			components: [row],
+			ephemeral: true
+		});
 		
-	
-	}).then((sorted) => {
-
+		currItn = await buttonItn.awaitMessageComponent();
+		resolve(Number(currItn.customId));
+		
 	});
-	
+
+	let ranking = sorted.map((value) => {
+		return value.id;
+	});
+
+	let rankedNames = sorted.map((value) => {
+		return value.name;
+	})
+
+	pollScenario.setVote(currItn.user.id, ranking);
+	currItn.reply({
+		content: `Voting Completed, your ranking: ${JSON.stringify(rankedNames)}`,
+		ephemeral: true
+	});
+
+	currItn.channel.send(`${currItn.user.username} has finished voting!`);
+}
+
+// end =========================================================================
+command.addSubcommand((subCommand) => {
+	return subCommand.setName("end")
+		.setDescription("Ends the poll immediately.");
+});
+
+function runSubCommandEnd(interaction: CommandInteraction, pollScenario: Poll) {
+	pollScenario.setEndTime(new Date());
+	interaction.deferReply();
 }
 
 //==============================================================================
@@ -254,8 +307,14 @@ export default {
 		if(interaction.options.getSubcommand() == "list")
 			return runSubcommandList(interaction, pollScenario);
 
+		if(interaction.options.getSubcommand() == "start-vote")
+			return runSubCommandStartVote(interaction, pollScenario);
+
 		if(interaction.options.getSubcommand() == "vote")
 			return runSubCommandVote(interaction, pollScenario);
+
+		if(interaction.options.getSubcommand() == "end")
+			return runSubCommandEnd(interaction, pollScenario);
 			
 	}
 } as Command;
