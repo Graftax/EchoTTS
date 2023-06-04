@@ -1,4 +1,4 @@
-import { ActionRowBuilder, BaseMessageOptions, ButtonBuilder, ButtonStyle, CommandInteraction, InteractionReplyOptions, InteractionResponse, Message, MessageCreateOptions, PermissionFlagsBits, SlashCommandBuilder, SlashCommandSubcommandBuilder } from "discord.js";
+import { ActionRowBuilder, BaseMessageOptions, ButtonBuilder, ButtonStyle, CommandInteraction, InteractionReplyOptions, InteractionResponse, Message, MessageCreateOptions, PermissionFlagsBits, PermissionsBitField, SlashCommandBuilder, SlashCommandSubcommandBuilder } from "discord.js";
 import { Singleton as MovieDBProvider, PosterSize, TVResult } from "../MovieDBProvider.js";
 import { Command } from "../Commander";
 import { Singleton as ScenarioManager } from "../ScenarioManager.js";
@@ -99,12 +99,13 @@ function runSubcommandCreate(interaction: CommandInteraction) {
 
 	// If a poll already exists, then do not create another.
 	if(pollScenario)
-		return;
+		return interaction.reply({content: `A poll already exists in this channel.`, ephemeral: true});
 
 	let beforeValue = interaction.options.get("hours-before-vote");
 	let spentValue = interaction.options.get("hours-spent-voting");
 
 	pollScenario = new Poll(
+		interaction.user.id,
 		beforeValue ? beforeValue.value as number : null,
 		spentValue ? spentValue.value as number : null
 	);
@@ -132,10 +133,9 @@ async function runSubcommandNominate(interaction: CommandInteraction, pollScenar
 	let value = await MovieDBProvider.searchTV(title.value as string);
 
 	if(value.results.length <= 0)
-		return;
+		return interaction.reply({ content: "No results found.", ephemeral: true });
 
 	let result = value.results[0];
-	
 	let dmChannel = await interaction.user.createDM();
 
 	let response = await dmChannel.send(createNominationMessage(
@@ -143,7 +143,7 @@ async function runSubcommandNominate(interaction: CommandInteraction, pollScenar
 		MovieDBProvider.createImageURL(result.poster_path, new PosterSize(3))
 	));
 	
-	await interaction.reply({content: "Continue nominating in your direct messages.", ephemeral: true})
+	await interaction.reply({content: `${response.url}`, ephemeral: true})
 	
 	let state = {
 		index: 0,
@@ -200,17 +200,14 @@ command.addSubcommand((subCommand) => {
 function runSubcommandList(interaction: CommandInteraction, pollScenario: Poll) {
 
 	let items = pollScenario.getNomineeList();
-	let content = "Nominees: \n";
+	let content = `Nominees: \n`;
 
-	let place = 0;
 	for(let currItem of items) {
-		place++;
-		content += `${place}. ${currItem.name}\n`;
+		content += `\t${currItem.name}\n`;
 	}
 
 	interaction.reply({
-		content: content, 
-		ephemeral: true,
+		content: content
 	});
 	
 }
@@ -222,8 +219,14 @@ command.addSubcommand((subCommand) => {
 });
 
 function runSubCommandStartVote(interaction: CommandInteraction, pollScenario: Poll) {
+
+	let permField = interaction.member.permissions as Readonly<PermissionsBitField>;
+	if(!pollScenario.isCreator(interaction.user) && !permField.has(PermissionsBitField.Flags.ManageChannels))
+		return interaction.reply({content: "You dont have permission to do that.", ephemeral: true });
+
+	interaction.reply(`${interaction.user} is starting the vote.`);
 	pollScenario.setVoteTime(new Date());
-	interaction.deferReply();
+	
 }
 
 // vote ========================================================================
@@ -235,11 +238,14 @@ command.addSubcommand((subCommand) => {
 async function runSubCommandVote(interaction: CommandInteraction, pollScenario: Poll) {
 
 	if(!pollScenario.isVoting())
-		return;
+		return await interaction.reply({content: `The poll is not currently voting.`, ephemeral: true});
 
 	let nomList = pollScenario.getNomineeList();
-	let currItn: CommandInteraction | MessageComponentInteraction = interaction;
+	let dmChannel = await interaction.user.createDM();
+	
+	await interaction.reply({content: `Check your DMs to vote.`, ephemeral: true})
 
+	let currItn: MessageComponentInteraction | null = null;
 	let sorted = await IterativeSort(nomList, 3, async (set, resolve) => {
 
 		const row = new ActionRowBuilder<ButtonBuilder>();
@@ -253,14 +259,13 @@ async function runSubCommandVote(interaction: CommandInteraction, pollScenario: 
 
 		});
 
-		let buttonItn = await currItn.reply({
+		let buttonItn = await dmChannel.send({
+			content: `Voting for the poll in ${pollScenario.channel().url}.\nWhich of these options do you like the most?`,
 			components: [row],
-			ephemeral: true
+			embeds: []
 		});
 		
-		// TODO: Test this and check if message exists before deleting.
-		// I bet it is trying to delete the commandinteraction or something.
-		if(currItn.isMessageComponent())
+		if(currItn?.isMessageComponent())
 			currItn.message.delete();
 
 		currItn = await buttonItn.awaitMessageComponent();
@@ -268,21 +273,27 @@ async function runSubCommandVote(interaction: CommandInteraction, pollScenario: 
 		
 	});
 
+	if(currItn?.isMessageComponent())
+			currItn.message.delete();
+
 	let ranking = sorted.map((value) => {
 		return value.id;
 	});
 
-	let rankedNames = sorted.map((value) => {
-		return value.name;
-	})
-
-	pollScenario.setVote(currItn.user.id, ranking);
-	currItn.reply({
-		content: `Voting Completed, your ranking: ${JSON.stringify(rankedNames)}`,
-		ephemeral: true
+	let rankingText = ">>> ";
+	sorted.forEach((value, index) => {
+		rankingText += `${index + 1}. ${value.name}\n`;
 	});
 
-	currItn.channel.send(`${currItn.user.username} has finished voting!`);
+	pollScenario.setVote(currItn.user.id, ranking);
+
+	dmChannel.send({
+		content: `Voting completed, your ranking:\n${rankingText}`,
+	});
+
+	let pollChannel = pollScenario.channel();
+	if(pollChannel.isTextBased())
+		pollChannel.send(`${currItn.user} has voted!`);
 }
 
 // end =========================================================================
@@ -293,7 +304,10 @@ command.addSubcommand((subCommand) => {
 
 function runSubCommandEnd(interaction: CommandInteraction, pollScenario: Poll) {
 
-	//if(interaction.memberPermissions.has(PermissionFlagsBits.ManageChannels)
+	let permField = interaction.member.permissions as Readonly<PermissionsBitField>;
+	if(!pollScenario.isCreator(interaction.user) && !permField.has(PermissionsBitField.Flags.ManageChannels))
+		return interaction.reply({content: "You dont have permission to do that.", ephemeral: true });
+
 	interaction.reply(`${interaction.user} is ending the poll.`);
 	pollScenario.setEndTime(new Date());
 

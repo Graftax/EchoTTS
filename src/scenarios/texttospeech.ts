@@ -114,8 +114,8 @@ export default class TextToSpeech extends Scenario {
 
 	shutdown() {
 
-		this._client.removeListener(Events.VoiceStateUpdate, this.onVoiceStateUpdate);
-		this._client.removeListener(Events.MessageCreate, this.onMessageCreate);
+		this.client().removeListener(Events.VoiceStateUpdate, this.onVoiceStateUpdate);
+		this.client().removeListener(Events.MessageCreate, this.onMessageCreate);
 
 		if(this._connection)
 			this._connection.destroy();
@@ -200,7 +200,7 @@ export default class TextToSpeech extends Scenario {
 		if(!state.channel)
 			return false;
 
-		if(state.channel.id != this._channel.id)
+		if(state.channel.id != this.channel().id)
 			return false;
 
 		return state.channel.members.size <= 1;
@@ -211,10 +211,10 @@ export default class TextToSpeech extends Scenario {
 		if(!state.channel)
 			return false;
 
-		if(state.channel.id != this._channel.id)
+		if(state.channel.id != this.channel().id)
 			return false;
 
-		return state.member.id == this._client.user.id;
+		return state.member.id == this.client().user.id;
 	}
 
 	onVoiceStateUpdate = (oldState: VoiceState, newState: VoiceState) => {
@@ -226,7 +226,7 @@ export default class TextToSpeech extends Scenario {
 
 	onMessageCreate = (message: Message) => {
 
-		if(message.channel.id != this._channel.id)
+		if(message.channel.id != this.channel().id)
 			return;
 		
 		if(!this._subjects.has(message.author.id))

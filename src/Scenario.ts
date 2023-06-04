@@ -4,8 +4,8 @@ import { PropValue } from "./DataStorage.js";
 
 export abstract class Scenario {
 
-	protected _channel: Channel = null;
-	protected _client: Client = null;
+	private _channel: Channel = null;
+	private _client: Client = null;
 
 	end: () => void = null;
 	save: (toSave: PropValue) => void = null;
@@ -26,6 +26,10 @@ export abstract class Scenario {
 
 	channel(): Channel {
 		return this._channel;
+	}
+
+	client(): Client {
+		return this._client;
 	}
 
 }

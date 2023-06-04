@@ -6,8 +6,6 @@ import { Configuration, OpenAIApi, ChatCompletionRequestMessage, ChatCompletionR
 
 export default class Chatbot extends Scenario {
 
-	_channel: TextChannel = null;
-	_client: Client = null;
 	_messages = new Array<Message>();
 	_timeout: ReturnType<typeof setTimeout> = null;
 
@@ -17,21 +15,19 @@ export default class Chatbot extends Scenario {
 
 	init(channel: Channel, client: Client) {
 
-		this._client = client;
+		super.init(channel, client);
 
 		if (!channel.isTextBased()) {
 			console.error("Scenario failed: channel is not text based.");
 			return this.end();
 		}
 
-		this._channel = channel as TextChannel;
-
 		client.on(Events.MessageCreate, this.onMessageCreate);
 
 	}
 
 	shutdown() {
-		this._client.removeListener(Events.MessageCreate, this.onMessageCreate);
+		this.client().removeListener(Events.MessageCreate, this.onMessageCreate);
 	}
 
 	getPromptString(): string {
@@ -47,7 +43,7 @@ export default class Chatbot extends Scenario {
 		outArray.push({ role: "system", content: "" });
 
 		this._messages.forEach((message) => {
-			let role = message.author.id == this._client.user.id ? ChatCompletionRequestMessageRoleEnum.Assistant : ChatCompletionRequestMessageRoleEnum.User;
+			let role = message.author.id == this.client().user.id ? ChatCompletionRequestMessageRoleEnum.Assistant : ChatCompletionRequestMessageRoleEnum.User;
 			outArray.push({ role: role, content: message.content });
 		});
 
@@ -65,7 +61,7 @@ export default class Chatbot extends Scenario {
 		this._messages.forEach((message) => {
 
 			let username = message.author.username;
-			if(message.author.id == this._client.user.id)
+			if(message.author.id == this.client().user.id)
 				username = "{Echo}";
 
 			outString += `${username}:${message.content}\t`;
@@ -77,7 +73,7 @@ export default class Chatbot extends Scenario {
 
 	onMessageCreate = (message: Message) => {
 
-		if (message.channel.id != this._channel.id)
+		if (message.channel.id != this.channel().id)
 			return;
 
 		this._messages.push(message);
@@ -85,7 +81,7 @@ export default class Chatbot extends Scenario {
 		if (this._messages.length > 10)
 			this._messages.shift();
 
-		if (message.author.id == this._client.user.id)
+		if (message.author.id == this.client().user.id)
 			return;
 
 		this._openai.createCompletion({
@@ -117,14 +113,19 @@ export default class Chatbot extends Scenario {
 
 		if(output.length <= 0)
 			output = "❌";
-			
-		this._channel.send(output);
+		
+		let channel = this.channel();
+		if(channel.isTextBased())
+			channel.send(output);
 
 	}
 
 	onTimeout = () => {
 
-		this._channel.send("I'm leaving, goodbye!");
+		let channel = this.channel();
+		if(channel.isTextBased())
+			channel.send("I'm leaving, goodbye!");
+
 		this.end();
 
 	}
