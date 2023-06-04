@@ -28,8 +28,6 @@ interface SaveState {
 
 export default class Poll extends Scenario {
 
-	private _channel: Channel = null;
-	private _client: Client = null;
 	private _isVoting = false;
 
 	private _nominees: Map<string, Nominee> = new Map;
@@ -58,9 +56,9 @@ export default class Poll extends Scenario {
 	}
 
 	init(channel: Channel, client: Client) {
-		this._channel = channel;
-		this._client = client;
 
+		super.init(channel, client);
+		
 		this.loadState();
 		this.saveState();
 

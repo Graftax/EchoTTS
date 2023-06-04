@@ -1,4 +1,4 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, CommandInteraction, InteractionReplyOptions, InteractionResponse, SlashCommandBuilder, SlashCommandSubcommandBuilder } from "discord.js";
+import { ActionRowBuilder, BaseMessageOptions, ButtonBuilder, ButtonStyle, CommandInteraction, InteractionReplyOptions, InteractionResponse, Message, MessageCreateOptions, PermissionFlagsBits, SlashCommandBuilder, SlashCommandSubcommandBuilder } from "discord.js";
 import { Singleton as MovieDBProvider, PosterSize, TVResult } from "../MovieDBProvider.js";
 import { Command } from "../Commander";
 import { Singleton as ScenarioManager } from "../ScenarioManager.js";
@@ -13,7 +13,7 @@ import { MessagePayload } from "discord.js";
 // Use v4-api https://github.com/thetvdb/v4-api
 
 // TODO:  Create loop message for voting similar to nomination.
-function createNominationMessage(title: string, imgUrl: string): InteractionReplyOptions {
+function createNominationMessage(title: string, imgUrl: string): BaseMessageOptions {
 
 	const row = new ActionRowBuilder<ButtonBuilder>();
 
@@ -48,9 +48,9 @@ function createNominationMessage(title: string, imgUrl: string): InteractionRepl
 
 }
 
-type InteractionProcessor = (response: MessageComponentInteraction) => InteractionReplyOptions;
+type InteractionProcessor = (response: MessageComponentInteraction) => BaseMessageOptions;
 
-async function interactionLoop(response: InteractionResponse<boolean>, onMessage: InteractionProcessor) {
+async function interactionLoop(response: Message, onMessage: InteractionProcessor) {
 
 	let originResponse = await response.awaitMessageComponent({
 		//filter: (i) => { return i.user.id == userID; }
@@ -61,9 +61,10 @@ async function interactionLoop(response: InteractionResponse<boolean>, onMessage
 	if(!newMessage)
 		return;
 
-	let replyResponse = await originResponse.reply(newMessage);
+	let replyResponse = await originResponse.channel.send(newMessage);
 
-	await originResponse.message.delete()
+	if(!originResponse.ephemeral)
+		await originResponse.message.delete();
 
 	if(newMessage?.components?.length > 0)
 		interactionLoop(replyResponse, onMessage);
@@ -135,14 +136,18 @@ async function runSubcommandNominate(interaction: CommandInteraction, pollScenar
 
 	let result = value.results[0];
 	
-	let response = await interaction.reply(createNominationMessage(
+	let dmChannel = await interaction.user.createDM();
+
+	let response = await dmChannel.send(createNominationMessage(
 		result.name,
 		MovieDBProvider.createImageURL(result.poster_path, new PosterSize(3))
-	))
-
+	));
+	
+	await interaction.reply({content: "Continue nominating in your direct messages.", ephemeral: true})
+	
 	let state = {
 		index: 0,
-		results: value.results,
+		searched: value.results,
 		poll: pollScenario
 	};
 
@@ -152,14 +157,14 @@ async function runSubcommandNominate(interaction: CommandInteraction, pollScenar
 			return {content: "Canceled nomination.", ephemeral: true};
 
 		if(currResponse.customId == "cmd-next")
-			state.index = Math.min(state.results.length - 1, state.index + 1);
+			state.index = Math.min(state.searched.length - 1, state.index + 1);
 
 		if(currResponse.customId == "cmd-prev")
 			state.index = Math.max(0, state.index - 1);
 
-		let id = state.results[state.index].id;
-		let name = state.results[state.index].name;
-		let posterPath = state.results[state.index].poster_path;
+		let id = state.searched[state.index].id;
+		let name = state.searched[state.index].name;
+		let posterPath = state.searched[state.index].poster_path;
 
 		if(currResponse.customId == "cmd-nom") {
 
@@ -171,7 +176,11 @@ async function runSubcommandNominate(interaction: CommandInteraction, pollScenar
 				nominator: currResponse.user.id
 			});
 
-			return { content: `Submitted nomination for ${name}`, ephemeral: true };
+			let pollChannel = pollScenario.channel();
+			if(pollChannel.isTextBased())
+				pollChannel.send(`${currResponse.user} submitted a nomination for ${name}`);
+
+			return { content: `You have nominated ${name}.` };
 		}
 
 		return createNominationMessage(name,
@@ -249,6 +258,11 @@ async function runSubCommandVote(interaction: CommandInteraction, pollScenario: 
 			ephemeral: true
 		});
 		
+		// TODO: Test this and check if message exists before deleting.
+		// I bet it is trying to delete the commandinteraction or something.
+		if(currItn.isMessageComponent())
+			currItn.message.delete();
+
 		currItn = await buttonItn.awaitMessageComponent();
 		resolve(Number(currItn.customId));
 		
@@ -278,8 +292,11 @@ command.addSubcommand((subCommand) => {
 });
 
 function runSubCommandEnd(interaction: CommandInteraction, pollScenario: Poll) {
+
+	//if(interaction.memberPermissions.has(PermissionFlagsBits.ManageChannels)
+	interaction.reply(`${interaction.user} is ending the poll.`);
 	pollScenario.setEndTime(new Date());
-	interaction.deferReply();
+
 }
 
 //==============================================================================

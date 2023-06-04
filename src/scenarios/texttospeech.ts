@@ -55,8 +55,7 @@ export function getSettings(userID: string) : object {
 
 export default class TextToSpeech extends Scenario {
 
-	private _channel: Channel;
-	private _client: Client;
+
 	private _connection: DSVoice.VoiceConnection = null;
 	private _subjects: Set<string> = new Set();
 	private _player = DSVoice.createAudioPlayer();
@@ -64,8 +63,7 @@ export default class TextToSpeech extends Scenario {
 
 	init(channel: Channel, client: Client) {
 
-		this._channel = channel;
-		this._client = client;
+		super.init(channel, client);
 
 		if(!channel.isVoiceBased()) {
 			console.error("Scenario failed: channel is not voice based.");
