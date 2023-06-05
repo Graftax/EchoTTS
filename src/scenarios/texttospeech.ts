@@ -16,7 +16,6 @@ interface SpeakItem {
 	options: VoiceOptions;
 }
 
-// TODO: Test settings again.
 export function setGender(interaction: CommandInteraction) {
 
 	let option = interaction.options.get("gender", false)
@@ -72,10 +71,6 @@ export default class TextToSpeech extends Scenario {
 
 		let voiceChannel = channel as VoiceChannel;
 
-		// TODO: Generic system for sharing voice connection.
-		// It would be nice if scenarios could share the same
-		// voice connection, but the use case is limited right
-		// now, since only one scenario uses voice.
 		let prevConnection = DSVoice.getVoiceConnection(voiceChannel.guildId);
 		if(prevConnection){
 			console.warn(`Scenario failed: voice connection already in use in ${voiceChannel.name}`);

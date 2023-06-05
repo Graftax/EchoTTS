@@ -10,7 +10,6 @@ import { MessageComponentInteraction } from "discord.js";
 // https://developers.themoviedb.org/3/search/search-tv-shows
 // Use v4-api https://github.com/thetvdb/v4-api
 
-// TODO:  Create loop message for voting similar to nomination.
 function createNominationMessage(title: string, imgUrl: string, channel: Channel): BaseMessageOptions {
 
 	const row = new ActionRowBuilder<ButtonBuilder>();
@@ -70,7 +69,7 @@ async function interactionLoop(response: Message, onMessage: InteractionProcesso
 
 let command = new SlashCommandBuilder();
 command.setName("poll");
-command.setDescription("Create and manage polls.")
+command.setDescription("Create and access polls.")
 command.setDMPermission(false);
 
 // create ======================================================================
@@ -90,6 +89,12 @@ command.addSubcommand((subCommand) => {
 				.setRequired(true);
 		})
 
+		.addNumberOption((option) => {
+			return option.setName("nomination-limit")
+				.setDescription("The max number of nominations one person can make. (Default: 1)")
+				.setMinValue(1);
+		});
+
 });
 
 function runSubcommandCreate(interaction: CommandInteraction) {
@@ -100,13 +105,13 @@ function runSubcommandCreate(interaction: CommandInteraction) {
 	if(pollScenario)
 		return interaction.reply({content: `A poll already exists in this channel.`, ephemeral: true});
 
-	let beforeValue = interaction.options.get("hours-before-vote");
-	let spentValue = interaction.options.get("hours-spent-voting");
+	let nomLimit = interaction.options.get("nomination-limit");
 
 	pollScenario = new Poll(
 		interaction.user.id,
-		beforeValue ? beforeValue.value as number : null,
-		spentValue ? spentValue.value as number : null
+		interaction.options.get("hours-before-vote").value as number,
+		interaction.options.get("hours-spent-voting").value as number,
+		nomLimit ? nomLimit.value as number : 1
 	);
 
 	ScenarioManager.startScenario(interaction.channel, pollScenario);

@@ -22,6 +22,7 @@ export interface Nominee {
 
 interface SaveState {
 	creatorID: string,
+	nominationLimit: number,
 	items: { [key: string]: Nominee }
 	voteTime: string,
 	endTime: string,
@@ -34,6 +35,7 @@ export default class Poll extends Scenario {
 	private _isVoting = false;
 	private _creatorID: string = null;
 
+	private _nominationLimit = 1;
 	private _nominees: Map<string, Nominee> = new Map;
 
 	private _voteTime = new Date(0);
@@ -44,13 +46,15 @@ export default class Poll extends Scenario {
 
 	private _votes: Map<string, Array<string>> = new Map;
 
-	constructor(creatorID: string, hoursBeforeVote: number, hoursVoting: number) {
+	constructor(creatorID: string, hoursBeforeVote: number, hoursVoting: number, nominationLimit: number) {
 		super();
 
 		this._creatorID = creatorID;
 		this._voteTime = new Date(Date.now() + (hoursBeforeVote * hoursToMs));
 		this._endTime = new Date(this._voteTime.getTime() + (hoursVoting * hoursToMs));
-
+		
+		if(nominationLimit)
+			this._nominationLimit = nominationLimit;
 	}
 
 	init(channel: Channel, client: Client) {
@@ -152,6 +156,7 @@ export default class Poll extends Scenario {
 	private saveState() {
 
 		this.save({
+			nominationLimit: this._nominationLimit,
 			items: Object.fromEntries(this._nominees),
 			voteTime: this._voteTime.toISOString(),
 			endTime: this._endTime.toISOString(),
@@ -168,6 +173,7 @@ export default class Poll extends Scenario {
 		if(!state)
 			return;
 
+		this._nominationLimit = state.nominationLimit;
 		this._nominees = new Map(Object.entries(state.items));
 		this._voteTime = new Date(state.voteTime);
 		this._endTime = new Date(state.endTime);
@@ -182,11 +188,14 @@ export default class Poll extends Scenario {
 		if(this._nominees.has(uid))
 			return false;
 
-		// for(let [key, value] of this._nominees) {
+		let tor = toAdd.nominator;
 
-		// 	if(value.nominator == toAdd.nominator)
-		// 		return false;
-		// }
+		let found = Array.from(this._nominees.entries()).filter(([UID, nominee]) => {
+			return nominee.nominator == tor;
+		});
+
+		if(found.length >= this._nominationLimit)
+			return false;
 
 		return true;
 	}
