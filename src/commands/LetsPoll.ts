@@ -1,19 +1,17 @@
-import { ActionRowBuilder, BaseMessageOptions, ButtonBuilder, ButtonStyle, CommandInteraction, InteractionReplyOptions, InteractionResponse, Message, MessageCreateOptions, PermissionFlagsBits, PermissionsBitField, SlashCommandBuilder, SlashCommandSubcommandBuilder } from "discord.js";
+import { ActionRowBuilder, BaseMessageOptions, ButtonBuilder, ButtonStyle, Channel, CommandInteraction, InteractionReplyOptions, InteractionResponse, Message, MessageCreateOptions, PermissionFlagsBits, PermissionsBitField, SlashCommandBuilder, SlashCommandSubcommandBuilder } from "discord.js";
 import { Singleton as MovieDBProvider, PosterSize, TVResult } from "../MovieDBProvider.js";
 import { Command } from "../Commander";
 import { Singleton as ScenarioManager } from "../ScenarioManager.js";
 import Poll from "../scenarios/Poll.js";
 import IterativeSort from "../IterativeSort.js";
-import { MappedInteractionTypes, MessageComponentType } from "discord.js";
 import { MessageComponentInteraction } from "discord.js";
-import { MessagePayload } from "discord.js";
 
 // https://developers.themoviedb.org/3/getting-started/authentication
 // https://developers.themoviedb.org/3/search/search-tv-shows
 // Use v4-api https://github.com/thetvdb/v4-api
 
 // TODO:  Create loop message for voting similar to nomination.
-function createNominationMessage(title: string, imgUrl: string): BaseMessageOptions {
+function createNominationMessage(title: string, imgUrl: string, channel: Channel): BaseMessageOptions {
 
 	const row = new ActionRowBuilder<ButtonBuilder>();
 
@@ -38,7 +36,7 @@ function createNominationMessage(title: string, imgUrl: string): BaseMessageOpti
 		.setStyle(ButtonStyle.Primary));
 
 	return {
-		content: `Select which show you would like to nominate.`,
+		content: `Nominating for the poll in ${channel.url}.\nSelect which show you would like to nominate.`,
 		components: [row],
 		embeds: [{
 			title: title,
@@ -73,6 +71,7 @@ async function interactionLoop(response: Message, onMessage: InteractionProcesso
 let command = new SlashCommandBuilder();
 command.setName("poll");
 command.setDescription("Create and manage polls.")
+command.setDMPermission(false);
 
 // create ======================================================================
 command.addSubcommand((subCommand) => {
@@ -111,7 +110,7 @@ function runSubcommandCreate(interaction: CommandInteraction) {
 	);
 
 	ScenarioManager.startScenario(interaction.channel, pollScenario);
-	interaction.reply(`${interaction.user.username} has created a poll in this channel.`);
+	interaction.reply(`${interaction.user.username} has created a poll in this channel. You may nominate with \`/poll nominate\`.`);
 }
 
 // Nominate ====================================================================
@@ -129,6 +128,9 @@ command.addSubcommand((subCommand) => {
 
 async function runSubcommandNominate(interaction: CommandInteraction, pollScenario: Poll) {
 
+	if(pollScenario.isVoting())
+		return interaction.reply({ content:"Nomination is unavailable while the poll is voting.", ephemeral: true });
+
 	let title = interaction.options.get("title", true);
 	let value = await MovieDBProvider.searchTV(title.value as string);
 
@@ -137,14 +139,16 @@ async function runSubcommandNominate(interaction: CommandInteraction, pollScenar
 
 	let result = value.results[0];
 	let dmChannel = await interaction.user.createDM();
+	let pollChannel = pollScenario.channel();
 
 	let response = await dmChannel.send(createNominationMessage(
 		result.name,
-		MovieDBProvider.createImageURL(result.poster_path, new PosterSize(3))
+		MovieDBProvider.createImageURL(result.poster_path, new PosterSize(3)),
+		pollChannel
 	));
 	
-	await interaction.reply({content: `${response.url}`, ephemeral: true})
-	
+	(await interaction.reply(`Loading.`)).delete();
+
 	let state = {
 		index: 0,
 		searched: value.results,
@@ -176,15 +180,15 @@ async function runSubcommandNominate(interaction: CommandInteraction, pollScenar
 				nominator: currResponse.user.id
 			});
 
-			let pollChannel = pollScenario.channel();
 			if(pollChannel.isTextBased())
-				pollChannel.send(`${currResponse.user} submitted a nomination for ${name}`);
+				pollChannel.send(`${currResponse.user} nominated ${name}`);
 
 			return { content: `You have nominated ${name}.` };
 		}
 
 		return createNominationMessage(name,
-			MovieDBProvider.createImageURL(posterPath, new PosterSize(3))
+			MovieDBProvider.createImageURL(posterPath, new PosterSize(3)),
+			pollChannel
 		);
 
 	});
@@ -215,13 +219,12 @@ function runSubcommandList(interaction: CommandInteraction, pollScenario: Poll) 
 // start vote ==================================================================
 command.addSubcommand((subCommand) => {
 	return subCommand.setName("start-vote")
-		.setDescription("Ends the nomination time and begins voting immediatly.");
+		.setDescription("Ends the nomination time and begins voting immediatly. (Poll Creator Only)");
 });
 
 function runSubCommandStartVote(interaction: CommandInteraction, pollScenario: Poll) {
 
-	let permField = interaction.member.permissions as Readonly<PermissionsBitField>;
-	if(!pollScenario.isCreator(interaction.user) && !permField.has(PermissionsBitField.Flags.ManageChannels))
+	if(!pollScenario.isCreator(interaction.user))
 		return interaction.reply({content: "You dont have permission to do that.", ephemeral: true });
 
 	interaction.reply(`${interaction.user} is starting the vote.`);
@@ -232,7 +235,7 @@ function runSubCommandStartVote(interaction: CommandInteraction, pollScenario: P
 // vote ========================================================================
 command.addSubcommand((subCommand) => {
 	return subCommand.setName("vote")
-		.setDescription("Begins your voting process in this channel.");
+		.setDescription("Asks questions to submit your ranked vote.");
 });
 
 async function runSubCommandVote(interaction: CommandInteraction, pollScenario: Poll) {
@@ -243,7 +246,7 @@ async function runSubCommandVote(interaction: CommandInteraction, pollScenario: 
 	let nomList = pollScenario.getNomineeList();
 	let dmChannel = await interaction.user.createDM();
 	
-	await interaction.reply({content: `Check your DMs to vote.`, ephemeral: true})
+	(await interaction.reply({content: `Loading.`})).delete();
 
 	let currItn: MessageComponentInteraction | null = null;
 	let sorted = await IterativeSort(nomList, 3, async (set, resolve) => {
@@ -260,9 +263,11 @@ async function runSubCommandVote(interaction: CommandInteraction, pollScenario: 
 		});
 
 		let buttonItn = await dmChannel.send({
-			content: `Voting for the poll in ${pollScenario.channel().url}.\nWhich of these options do you like the most?`,
+			content: `Voting for the poll in ${pollScenario.channel().url}.`,
 			components: [row],
-			embeds: []
+			embeds: [{
+				title: "Which of these options do you like the most?"
+			}]
 		});
 		
 		if(currItn?.isMessageComponent())
@@ -299,13 +304,12 @@ async function runSubCommandVote(interaction: CommandInteraction, pollScenario: 
 // end =========================================================================
 command.addSubcommand((subCommand) => {
 	return subCommand.setName("end")
-		.setDescription("Ends the poll immediately.");
+		.setDescription("Ends the poll immediately. (Poll Creator Only)");
 });
 
 function runSubCommandEnd(interaction: CommandInteraction, pollScenario: Poll) {
 
-	let permField = interaction.member.permissions as Readonly<PermissionsBitField>;
-	if(!pollScenario.isCreator(interaction.user) && !permField.has(PermissionsBitField.Flags.ManageChannels))
+	if(!pollScenario.isCreator(interaction.user))
 		return interaction.reply({content: "You dont have permission to do that.", ephemeral: true });
 
 	interaction.reply(`${interaction.user} is ending the poll.`);

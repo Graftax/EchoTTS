@@ -1,6 +1,7 @@
 import { Scenario } from "../Scenario.js";
 import { Channel, Client, User } from "discord.js";
 import Lt from "long-timeout";
+import { off } from "process";
 
 const hoursToMs = 3600000;
 
@@ -24,7 +25,8 @@ interface SaveState {
 	items: { [key: string]: Nominee }
 	voteTime: string,
 	endTime: string,
-	isVoting: boolean
+	isVoting: boolean,
+	votes: [string, string[]][]
 }
 
 export default class Poll extends Scenario {
@@ -79,6 +81,10 @@ export default class Poll extends Scenario {
 		return toCheck.id == this._creatorID;
 	}
 
+	isVoting(): boolean {
+		return this._isVoting;
+	}
+
 	private onVoteTimeout = () => {
 
 		if(this._isVoting)
@@ -89,7 +95,7 @@ export default class Poll extends Scenario {
 		
 		let pollChannel = this.channel();
 		if(pollChannel.isTextBased())
-			pollChannel.send(`The nomination period has ended, you may now vote. Use \`/poll vote.\``);
+			pollChannel.send(`The nomination period has ended, you may now vote. Use \`/poll vote\`.`);
 
 	}
 
@@ -97,19 +103,47 @@ export default class Poll extends Scenario {
 
 		let bordaCount = this.doBordaCount();
 
+		let channel = this.channel();
+		if(bordaCount.size <= 0 && channel.isTextBased()) {
+			this.end();
+			return channel.send("Could not tally a winner; there were no votes.");
+		}
+
 		let sorted = sortMapToArray(bordaCount);
+		let sortedItems = sorted.map((UID) => {
+			return this._nominees.get(UID);
+		});
 
-		let resultString = ">>> ";
-		sorted.forEach((UID, index) => {
+		let maxPoints = (this._nominees.size - 1) * this._votes.size;
+		let winner = sortedItems.splice(0, 1).at(0);
+		sortedItems = sortedItems.splice(0, 25);
+		let fields = sortedItems.map((currItem, index) => {
 
-			let currInfo = this._nominees.get(UID);
-			resultString += `${index + 1}. ${currInfo.name} (${bordaCount.get(UID)})\n`;
+			let currCount = bordaCount.get(currItem.id);
+			return {
+				name: `${index + 2}. ${currItem.name}`,
+				value: `${currCount} Points (${currCount / maxPoints * 100}%)`
+			}
 
 		});
 
-		let channel = this.channel();
-		if(channel.isTextBased())
-			channel.send(`The poll has finished, the results:\n${resultString}`);
+		if(channel.isTextBased()) {
+
+			let winnerCount = bordaCount.get(winner.id);
+			channel.send({
+				content: `The poll has finished.`,
+				embeds: [{
+					title: `**The winner is ${winner.name}!**`,
+					description: `${winnerCount} (${winnerCount / maxPoints * 100}%)`,
+					image: { url: winner.img_url },
+					color: 0xd4af37
+				}, {
+					fields: fields,
+					color: 0xaaa9ad
+				}]
+			});
+
+		}
 
 		this.end();
 
@@ -122,7 +156,8 @@ export default class Poll extends Scenario {
 			voteTime: this._voteTime.toISOString(),
 			endTime: this._endTime.toISOString(),
 			isVoting: this._isVoting,
-			creatorID: this._creatorID
+			creatorID: this._creatorID,
+			votes: Array.from(this._votes.entries())
 		} as SaveState);
 
 	}
@@ -130,25 +165,16 @@ export default class Poll extends Scenario {
 	private loadState() {
 
 		let state = this.load() as SaveState;
+		if(!state)
+			return;
 
-		if(state.items !== undefined)
-			this._nominees = new Map(Object.entries(state.items));
-
-		if(state.voteTime !== undefined)
-			this._voteTime = new Date(state.voteTime);
+		this._nominees = new Map(Object.entries(state.items));
+		this._voteTime = new Date(state.voteTime);
+		this._endTime = new Date(state.endTime);
+		this._isVoting = state.isVoting;
+		this._creatorID = state.creatorID;
+		this._votes = new Map(state.votes);
 		
-		if(state.endTime !== undefined)
-			this._endTime = new Date(state.endTime);
-
-		if(state.isVoting !== undefined)
-			this._isVoting = state.isVoting;
-
-		if(state.creatorID !== undefined)
-			this._creatorID = state.creatorID;
-	}
-
-	isVoting(): boolean {
-		return this._isVoting;
 	}
 
 	private canAddNom(uid: string, toAdd: Nominee) : boolean {
@@ -194,10 +220,13 @@ export default class Poll extends Scenario {
 
 	setVoteTime(time: Date) {
 
+		let offset = this._endTime.getTime() - this._voteTime.getTime();
+		
 		this._voteTime = time;
 		this.saveState();
 		this.updateVoteTimeout();
 
+		this.setEndTime(new Date(this._voteTime.getTime() + offset));
 	}
 
 	setEndTime(time: Date) {
@@ -233,6 +262,8 @@ export default class Poll extends Scenario {
 	setVote(userID: string, ranks: Array<string>) {
 
 		this._votes.set(userID, ranks);
+		this.saveState();
+
 	}
 
 	doBordaCount() : Map<string, number> {

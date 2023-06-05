@@ -108,7 +108,7 @@ export class ScenarioManager {
 		}; // save = (toSave)
 
 		toStart.load = () => {
-			return DataStorage.getProperty(newScenarioPath, "data", {});
+			return DataStorage.getProperty(newScenarioPath, "data");
 		}; // load = ()
 
 		toStart.init(channel, this._client);
