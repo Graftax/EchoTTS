@@ -138,7 +138,7 @@ export default class Poll extends Scenario {
 				content: `The poll has finished.`,
 				embeds: [{
 					title: `**The winner is ${winner.name}!**`,
-					description: `${winnerCount} (${winnerCount / maxPoints * 100}%)`,
+					description: `${winnerCount} Points (${winnerCount / maxPoints * 100}%)`,
 					image: { url: winner.img_url },
 					color: 0xd4af37
 				}, {

@@ -1,4 +1,4 @@
-import { ActionRowBuilder, BaseMessageOptions, ButtonBuilder, ButtonStyle, Channel, CommandInteraction, InteractionReplyOptions, InteractionResponse, Message, MessageCreateOptions, PermissionFlagsBits, PermissionsBitField, SlashCommandBuilder, SlashCommandSubcommandBuilder } from "discord.js";
+import { ActionRowBuilder, BaseMessageOptions, ButtonBuilder, ButtonStyle, Channel, CommandInteraction, InteractionResponse, SlashCommandBuilder, MappedInteractionTypes, ComponentType, ButtonInteraction } from "discord.js";
 import { Singleton as MovieDBProvider, PosterSize, TVResult } from "../MovieDBProvider.js";
 import { Command } from "../Commander";
 import { Singleton as ScenarioManager } from "../ScenarioManager.js";
@@ -20,11 +20,6 @@ function createNominationMessage(title: string, imgUrl: string, channel: Channel
 	.setStyle(ButtonStyle.Primary));
 
 	row.addComponents(new ButtonBuilder()
-		.setCustomId("cmd-cancel")
-		.setLabel("Cancel")
-		.setStyle(ButtonStyle.Danger));
-
-	row.addComponents(new ButtonBuilder()
 		.setCustomId("cmd-nom")
 		.setLabel("Nominate")
 		.setStyle(ButtonStyle.Success));
@@ -35,7 +30,7 @@ function createNominationMessage(title: string, imgUrl: string, channel: Channel
 		.setStyle(ButtonStyle.Primary));
 
 	return {
-		content: `Nominating for the poll in ${channel.url}.\nSelect which show you would like to nominate.`,
+		content: `Select which show you would like to nominate.`,
 		components: [row],
 		embeds: [{
 			title: title,
@@ -47,24 +42,18 @@ function createNominationMessage(title: string, imgUrl: string, channel: Channel
 
 type InteractionProcessor = (response: MessageComponentInteraction) => BaseMessageOptions;
 
-async function interactionLoop(response: Message, onMessage: InteractionProcessor) {
+async function interactionLoop(response: InteractionResponse, onMessage: InteractionProcessor) {
 
-	let originResponse = await response.awaitMessageComponent({
-		//filter: (i) => { return i.user.id == userID; }
-	});
-
-	let newMessage = onMessage(originResponse);
+	let interaction = await response.awaitMessageComponent({componentType: ComponentType.Button});
+	let newMessage = onMessage(interaction);
 
 	if(!newMessage)
 		return;
 
-	let replyResponse = await originResponse.channel.send(newMessage);
-
-	if(!originResponse.ephemeral)
-		await originResponse.message.delete();
+	interaction.update(newMessage);
 
 	if(newMessage?.components?.length > 0)
-		interactionLoop(replyResponse, onMessage);
+		interactionLoop(response, onMessage);
 }
 
 let command = new SlashCommandBuilder();
@@ -143,16 +132,12 @@ async function runSubcommandNominate(interaction: CommandInteraction, pollScenar
 		return interaction.reply({ content: "No results found.", ephemeral: true });
 
 	let result = value.results[0];
-	let dmChannel = await interaction.user.createDM();
 	let pollChannel = pollScenario.channel();
 
-	let response = await dmChannel.send(createNominationMessage(
-		result.name,
+	let response = await interaction.reply({...createNominationMessage(result.name,
 		MovieDBProvider.createImageURL(result.poster_path, new PosterSize(3)),
 		pollChannel
-	));
-	
-	(await interaction.reply(`Loading.`)).delete();
+	), ephemeral: true});
 
 	let state = {
 		index: 0,
@@ -161,9 +146,6 @@ async function runSubcommandNominate(interaction: CommandInteraction, pollScenar
 	};
 
 	interactionLoop(response, (currResponse) => {
-
-		if(currResponse.customId == "cmd-cancel")
-			return {content: "Canceled nomination.", ephemeral: true};
 
 		if(currResponse.customId == "cmd-next")
 			state.index = Math.min(state.searched.length - 1, state.index + 1);
@@ -188,7 +170,7 @@ async function runSubcommandNominate(interaction: CommandInteraction, pollScenar
 			if(pollChannel.isTextBased())
 				pollChannel.send(`${currResponse.user} nominated ${name}`);
 
-			return { content: `You have nominated ${name}.` };
+			return { content: `Nomination submitted. ✔`, components: [] };
 		}
 
 		return createNominationMessage(name,
@@ -209,10 +191,10 @@ command.addSubcommand((subCommand) => {
 function runSubcommandList(interaction: CommandInteraction, pollScenario: Poll) {
 
 	let items = pollScenario.getNomineeList();
-	let content = `Nominees: \n`;
+	let content = `Nominees:\n>>> `;
 
 	for(let currItem of items) {
-		content += `\t${currItem.name}\n`;
+		content += `${currItem.name}\n`;
 	}
 
 	interaction.reply({
@@ -249,11 +231,11 @@ async function runSubCommandVote(interaction: CommandInteraction, pollScenario: 
 		return await interaction.reply({content: `The poll is not currently voting.`, ephemeral: true});
 
 	let nomList = pollScenario.getNomineeList();
-	let dmChannel = await interaction.user.createDM();
-	
-	(await interaction.reply({content: `Loading.`})).delete();
+	if(nomList.length <= 1)
+		return await interaction.reply({content: `There are not enough nominations to vote on. (${nomList.length})`, ephemeral: true});
 
-	let currItn: MessageComponentInteraction | null = null;
+	let compInteraction: ButtonInteraction = null;
+	
 	let sorted = await IterativeSort(nomList, 3, async (set, resolve) => {
 
 		const row = new ActionRowBuilder<ButtonBuilder>();
@@ -267,24 +249,25 @@ async function runSubCommandVote(interaction: CommandInteraction, pollScenario: 
 
 		});
 
-		let buttonItn = await dmChannel.send({
-			content: `Voting for the poll in ${pollScenario.channel().url}.`,
-			components: [row],
-			embeds: [{
-				title: "Which of these options do you like the most?"
-			}]
-		});
-		
-		if(currItn?.isMessageComponent())
-			currItn.message.delete();
+		let newMessage = {
+			content: `Which of these options do you like the most?`,
+			components: [row]
+		};
 
-		currItn = await buttonItn.awaitMessageComponent();
-		resolve(Number(currItn.customId));
-		
-	});
+		if(!interaction.replied) {
 
-	if(currItn?.isMessageComponent())
-			currItn.message.delete();
+			let response = await interaction.reply({...newMessage, ephemeral: true});
+			compInteraction = await response.awaitMessageComponent({componentType: ComponentType.Button});
+			resolve(Number(compInteraction.customId));
+			return;
+
+		}
+
+		let buttonResponse = await compInteraction.update(newMessage);
+		compInteraction = await buttonResponse.awaitMessageComponent({componentType: ComponentType.Button});
+		resolve(Number(compInteraction.customId));
+		
+	}); // IterativeSort
 
 	let ranking = sorted.map((value) => {
 		return value.id;
@@ -295,15 +278,17 @@ async function runSubCommandVote(interaction: CommandInteraction, pollScenario: 
 		rankingText += `${index + 1}. ${value.name}\n`;
 	});
 
-	pollScenario.setVote(currItn.user.id, ranking);
+	pollScenario.setVote(compInteraction.user.id, ranking);
 
-	dmChannel.send({
+	compInteraction.update({
 		content: `Voting completed, your ranking:\n${rankingText}`,
+		components: [],
+		embeds: []
 	});
 
 	let pollChannel = pollScenario.channel();
 	if(pollChannel.isTextBased())
-		pollChannel.send(`${currItn.user} has voted!`);
+		pollChannel.send(`${compInteraction.user} has voted!`);
 }
 
 // end =========================================================================
@@ -321,7 +306,6 @@ function runSubCommandEnd(interaction: CommandInteraction, pollScenario: Poll) {
 	pollScenario.setEndTime(new Date());
 
 }
-
 //==============================================================================
 
 export default {
