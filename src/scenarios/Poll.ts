@@ -5,15 +5,8 @@ import { off } from "process";
 
 const hoursToMs = 3600000;
 
-// Creator can add or remove Nominations
-// Polling Ends and Result is Announced
-
-// Add command to start voting. 
-// Add command to end voting.
-// Add command to vote - This is gonna be a thing.
-
 export interface PollItem {
-	id: string;
+	uid: string;
 	name: string,
 	img_url: string
 }
@@ -126,7 +119,7 @@ export default class Poll<ItemType extends PollItem> extends Scenario {
 		sortedItems = sortedItems.splice(0, 25);
 		let fields = sortedItems.map((currItem, index) => {
 
-			let currCount = bordaCount.get(currItem.item.id);
+			let currCount = bordaCount.get(currItem.item.uid);
 			return {
 				name: `${index + 2}. ${currItem.item.name}`,
 				value: `${currCount} Points (${currCount / maxPoints * 100}%)`
@@ -136,7 +129,7 @@ export default class Poll<ItemType extends PollItem> extends Scenario {
 
 		if(channel.isTextBased()) {
 
-			let winnerCount = bordaCount.get(winner.item.id);
+			let winnerCount = bordaCount.get(winner.item.uid);
 			channel.send({
 				content: `The poll has finished.`,
 				embeds: [{
@@ -153,7 +146,6 @@ export default class Poll<ItemType extends PollItem> extends Scenario {
 		}
 
 		this.end();
-
 	}
 
 	private saveState() {
@@ -186,42 +178,60 @@ export default class Poll<ItemType extends PollItem> extends Scenario {
 		
 	}
 
-	private canAddNom(nominatorID: string, toAdd: ItemType) : boolean {
+	private canAddItem(nominatorID: string, toAdd: ItemType) : string {
 
-		if(this._nominees.has(toAdd.id))
-			return false;
+		if(this._nominees.has(toAdd.uid))
+			return "Item already exists.";
 
 		let found = Array.from(this._nominees.entries()).filter(([UID, nominee]) => {
 			return nominee.nominator == nominatorID;
 		});
 
 		if(found.length >= this._nominationLimit)
-			return false;
+			return `Item limit reached. (${this._nominationLimit})`;
 
-		return true;
+		return undefined;
 	}
 
-	addNominee(nominatorID: string, toAdd: ItemType) {
+	addItem(nominatorID: string, toAdd: ItemType) : string {
 
 		if(this._isVoting)
-			return;
+			return "Items cannot be added while the poll is voting.";
 
-		if(!this.canAddNom(nominatorID, toAdd))
-			return;
+		let res = this.canAddItem(nominatorID, toAdd);
+		if(res) return res;
 
-		this._nominees.set(toAdd.id, {nominator: nominatorID, item: toAdd});
+		this._nominees.set(toAdd.uid, {nominator: nominatorID, item: toAdd});
 		this.saveState();
 
+		return undefined;
+
 	}
 
-	removeNominee(uid: string) {
+	private canRemoveItem(nominatorID: string, uid: string, admin: boolean): string {
+
+		if(!this._nominees.has(uid))
+			return "Item doesn't exist.";
+
+		let currItem = this._nominees.get(uid);
+		if(currItem.nominator != nominatorID && !admin)
+			return "You do not have permission to remove that item.";
+
+		return undefined;
+	}
+
+	removeItem(uid: string, nominatorID: string, admin: boolean) {
 
 		if(this._isVoting)
-			return;
+			return "Items cannot be removed while the poll is voting.";
+
+		let res = this.canRemoveItem(nominatorID, uid, admin);
+		if(res) return res;
 
 		this._nominees.delete(uid);
 		this.saveState();
 
+		return undefined;
 	}
 
 	getNomineeList() : Array<ItemType> {

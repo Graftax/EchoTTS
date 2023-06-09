@@ -1,9 +1,10 @@
-import { Collection, CommandInteraction, Interaction, REST, Routes, SlashCommandBuilder } from "discord.js";
+import { AutocompleteInteraction, Collection, CommandInteraction, Interaction, REST, Routes, SlashCommandBuilder } from "discord.js";
 import CommandIndex from "./index/commands.js";
 
 export interface Command {
 	slashcommand: SlashCommandBuilder,
 	execute: (interaction: CommandInteraction) => void,
+	autocomplete?: (interaction: AutocompleteInteraction) => void
 }
 
 export default class Commander {
@@ -46,22 +47,26 @@ export default class Commander {
 	// Processes the text and runs the apropriate
 	exec(iaction: Interaction) : boolean {
 
-		if(!iaction.isCommand())
-			return false;
-
-		let cmdIaction = iaction as CommandInteraction;
-		if(cmdIaction == null)
+		if(!iaction.isAutocomplete() && !iaction.isCommand())
 			return false;
 
 		console.log(`Received command '${iaction.commandName}' from ${iaction.user.username}`);
 		let currCmd = this.m_commandMap.get(iaction.commandName);
 
 		if(!currCmd) {
-			cmdIaction.reply("That is not a valid command.");
+
+			if(iaction.isCommand())
+				iaction.reply("That is not a valid command.");
+
 			return false;
 		}
 
-		currCmd.execute(cmdIaction);
+		if(iaction.isAutocomplete() && currCmd.autocomplete)
+			currCmd.autocomplete(iaction);
+
+		if(iaction.isCommand())
+			currCmd.execute(iaction);
+
 		return true;
 
 	}

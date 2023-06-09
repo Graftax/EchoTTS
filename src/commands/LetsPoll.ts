@@ -82,7 +82,7 @@ command.addSubcommand((subCommand) => {
 				.setRequired(true);
 		})
 
-		.addNumberOption((option) => {
+		.addIntegerOption((option) => {
 			return option.setName("nomination-limit")
 				.setDescription("The max number of nominations one person can make. (Default: 1)")
 				.setMinValue(1);
@@ -163,8 +163,8 @@ async function runSubcommandNominate(interaction: CommandInteraction, pollScenar
 
 		if(currResponse.customId == "cmd-nom") {
 
-			state.poll.addNominee(currResponse.user.id, {
-				id: id.toString(),
+			state.poll.addItem(currResponse.user.id, {
+				uid: id.toString(),
 				name: name,
 				img_url: MovieDBProvider.createImageURL(posterPath, new PosterSize(3))
 			});
@@ -183,6 +183,23 @@ async function runSubcommandNominate(interaction: CommandInteraction, pollScenar
 	});
 
 }
+
+// remove-nominee ==============================================================
+command.addSubcommand((subCommand) => {
+	return subCommand.setName("remove-nominee")
+	.setDescription("Remove an item from the poll.")
+
+	.addStringOption((option) => {
+	 	return option.setName("title")
+		.setDescription("The name of the show to remove.")
+	 	.setRequired(true)
+		.setAutocomplete(true);
+	 });
+	
+});
+
+// async function runSubcommandNominate(interaction: CommandInteraction, pollScenario: Poll<ShowOrMovie>) {
+
 
 // list ========================================================================
 command.addSubcommand((subCommand) => {
@@ -272,7 +289,7 @@ async function runSubCommandVote(interaction: CommandInteraction, pollScenario: 
 	}); // IterativeSort
 
 	let ranking = sorted.map((value) => {
-		return value.id;
+		return value.uid;
 	});
 
 	let rankingText = ">>> ";
@@ -312,6 +329,24 @@ function runSubCommandEnd(interaction: CommandInteraction, pollScenario: Poll<Sh
 
 export default {
 	slashcommand: command,
+	autocomplete(interaction) {
+
+		let pollScenario = ScenarioManager.getScenario(interaction.channel, Poll.name) as Poll<ShowOrMovie>;
+		if(!pollScenario)
+			interaction.respond([]);
+
+		const focusedValue = interaction.options.getFocused() as string;
+		let list = pollScenario.getNomineeList().filter((value) => {
+
+			return value.name.toLowerCase().includes(focusedValue.toLowerCase());
+
+		});
+
+		interaction.respond(
+			list.map(choice => ({ name: choice.name, value: choice.uid })),
+		);
+
+	},
 	execute(interaction) {
 
 		// We have to narrow the type
