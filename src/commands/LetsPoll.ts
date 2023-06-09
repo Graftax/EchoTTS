@@ -2,13 +2,17 @@ import { ActionRowBuilder, BaseMessageOptions, ButtonBuilder, ButtonStyle, Chann
 import { Singleton as MovieDBProvider, PosterSize, TVResult } from "../MovieDBProvider.js";
 import { Command } from "../Commander";
 import { Singleton as ScenarioManager } from "../ScenarioManager.js";
-import Poll from "../scenarios/Poll.js";
+import Poll, { PollItem } from "../scenarios/Poll.js";
 import IterativeSort from "../IterativeSort.js";
 import { MessageComponentInteraction } from "discord.js";
 
 // https://developers.themoviedb.org/3/getting-started/authentication
 // https://developers.themoviedb.org/3/search/search-tv-shows
 // Use v4-api https://github.com/thetvdb/v4-api
+
+interface ShowOrMovie extends PollItem {
+
+}
 
 function createNominationMessage(title: string, imgUrl: string, channel: Channel): BaseMessageOptions {
 
@@ -88,7 +92,7 @@ command.addSubcommand((subCommand) => {
 
 function runSubcommandCreate(interaction: CommandInteraction) {
 
-	let pollScenario = ScenarioManager.getScenario(interaction.channel, Poll.name) as Poll;
+	let pollScenario = ScenarioManager.getScenario(interaction.channel, Poll.name) as Poll<ShowOrMovie>;
 
 	// If a poll already exists, then do not create another.
 	if(pollScenario)
@@ -120,7 +124,7 @@ command.addSubcommand((subCommand) => {
 	
 });
 
-async function runSubcommandNominate(interaction: CommandInteraction, pollScenario: Poll) {
+async function runSubcommandNominate(interaction: CommandInteraction, pollScenario: Poll<ShowOrMovie>) {
 
 	if(pollScenario.isVoting())
 		return interaction.reply({ content:"Nomination is unavailable while the poll is voting.", ephemeral: true });
@@ -159,12 +163,10 @@ async function runSubcommandNominate(interaction: CommandInteraction, pollScenar
 
 		if(currResponse.customId == "cmd-nom") {
 
-			state.poll.addNominee({
+			state.poll.addNominee(currResponse.user.id, {
 				id: id.toString(),
 				name: name,
-				img_url: MovieDBProvider.createImageURL(posterPath, new PosterSize(3)),
-				url: "https://graftax.net",
-				nominator: currResponse.user.id
+				img_url: MovieDBProvider.createImageURL(posterPath, new PosterSize(3))
 			});
 
 			if(pollChannel.isTextBased())
@@ -188,7 +190,7 @@ command.addSubcommand((subCommand) => {
 		.setDescription("Lists the nominations.");
 });
 
-function runSubcommandList(interaction: CommandInteraction, pollScenario: Poll) {
+function runSubcommandList(interaction: CommandInteraction, pollScenario: Poll<ShowOrMovie>) {
 
 	let items = pollScenario.getNomineeList();
 	let content = `Nominees:\n>>> `;
@@ -209,7 +211,7 @@ command.addSubcommand((subCommand) => {
 		.setDescription("Ends the nomination time and begins voting immediatly. (Poll Creator Only)");
 });
 
-function runSubCommandStartVote(interaction: CommandInteraction, pollScenario: Poll) {
+function runSubCommandStartVote(interaction: CommandInteraction, pollScenario: Poll<ShowOrMovie>) {
 
 	if(!pollScenario.isCreator(interaction.user))
 		return interaction.reply({content: "You dont have permission to do that.", ephemeral: true });
@@ -225,7 +227,7 @@ command.addSubcommand((subCommand) => {
 		.setDescription("Asks questions to submit your ranked vote.");
 });
 
-async function runSubCommandVote(interaction: CommandInteraction, pollScenario: Poll) {
+async function runSubCommandVote(interaction: CommandInteraction, pollScenario: Poll<ShowOrMovie>) {
 
 	if(!pollScenario.isVoting())
 		return await interaction.reply({content: `The poll is not currently voting.`, ephemeral: true});
@@ -297,7 +299,7 @@ command.addSubcommand((subCommand) => {
 		.setDescription("Ends the poll immediately. (Poll Creator Only)");
 });
 
-function runSubCommandEnd(interaction: CommandInteraction, pollScenario: Poll) {
+function runSubCommandEnd(interaction: CommandInteraction, pollScenario: Poll<ShowOrMovie>) {
 
 	if(!pollScenario.isCreator(interaction.user))
 		return interaction.reply({content: "You dont have permission to do that.", ephemeral: true });
@@ -317,7 +319,7 @@ export default {
 		if(!interaction.isChatInputCommand())
 			return;
 
-		let pollScenario = ScenarioManager.getScenario(interaction.channel, Poll.name) as Poll;
+		let pollScenario = ScenarioManager.getScenario(interaction.channel, Poll.name) as Poll<ShowOrMovie>;
 		
 		if(interaction.options.getSubcommand() == "create" && !pollScenario)
 			return runSubcommandCreate(interaction);

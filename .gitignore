@@ -1,8 +1,16 @@
-dist/
+
 node_modules/
+
+# Build
+src/index/
+dist/
+
+# Config
+.env
+res/introduction.txt
 config.json
 users-db.json
 db.json
-.env
-res/introduction.txt
-src/index/
+
+# Visual Studio Code
+*.code-workspace

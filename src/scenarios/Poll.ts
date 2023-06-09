@@ -12,31 +12,34 @@ const hoursToMs = 3600000;
 // Add command to end voting.
 // Add command to vote - This is gonna be a thing.
 
-export interface Nominee {
-	id: string,
+export interface PollItem {
+	id: string;
 	name: string,
 	img_url: string
-	url: string,
-	nominator: string
 }
 
-interface SaveState {
+interface InternalItem<ItemType> {
+	nominator: string,
+	item: ItemType
+}
+
+interface SaveState<ItemType> {
 	creatorID: string,
 	nominationLimit: number,
-	items: { [key: string]: Nominee }
+	items: { [key: string]: InternalItem<ItemType> }
 	voteTime: string,
 	endTime: string,
 	isVoting: boolean,
 	votes: [string, string[]][]
 }
 
-export default class Poll extends Scenario {
+export default class Poll<ItemType extends PollItem> extends Scenario {
 
 	private _isVoting = false;
 	private _creatorID: string = null;
 
 	private _nominationLimit = 1;
-	private _nominees: Map<string, Nominee> = new Map;
+	private _nominees: Map<string, InternalItem<ItemType>> = new Map;
 
 	private _voteTime = new Date(0);
 	private _voteTimeout: Lt.Timeout = null;
@@ -123,9 +126,9 @@ export default class Poll extends Scenario {
 		sortedItems = sortedItems.splice(0, 25);
 		let fields = sortedItems.map((currItem, index) => {
 
-			let currCount = bordaCount.get(currItem.id);
+			let currCount = bordaCount.get(currItem.item.id);
 			return {
-				name: `${index + 2}. ${currItem.name}`,
+				name: `${index + 2}. ${currItem.item.name}`,
 				value: `${currCount} Points (${currCount / maxPoints * 100}%)`
 			}
 
@@ -133,13 +136,13 @@ export default class Poll extends Scenario {
 
 		if(channel.isTextBased()) {
 
-			let winnerCount = bordaCount.get(winner.id);
+			let winnerCount = bordaCount.get(winner.item.id);
 			channel.send({
 				content: `The poll has finished.`,
 				embeds: [{
-					title: `**The winner is ${winner.name}!**`,
+					title: `**The winner is ${winner.item.name}!**`,
 					description: `${winnerCount} Points (${winnerCount / maxPoints * 100}%)`,
-					image: { url: winner.img_url },
+					image: { url: winner.item.img_url },
 					color: 0xd4af37
 				}, {
 					fields: fields,
@@ -163,13 +166,13 @@ export default class Poll extends Scenario {
 			isVoting: this._isVoting,
 			creatorID: this._creatorID,
 			votes: Array.from(this._votes.entries())
-		} as SaveState);
+		} as SaveState<ItemType>);
 
 	}
 
 	private loadState() {
 
-		let state = this.load() as SaveState;
+		let state = this.load() as SaveState<ItemType>;
 		if(!state)
 			return;
 
@@ -183,15 +186,13 @@ export default class Poll extends Scenario {
 		
 	}
 
-	private canAddNom(uid: string, toAdd: Nominee) : boolean {
+	private canAddNom(nominatorID: string, toAdd: ItemType) : boolean {
 
-		if(this._nominees.has(uid))
+		if(this._nominees.has(toAdd.id))
 			return false;
 
-		let tor = toAdd.nominator;
-
 		let found = Array.from(this._nominees.entries()).filter(([UID, nominee]) => {
-			return nominee.nominator == tor;
+			return nominee.nominator == nominatorID;
 		});
 
 		if(found.length >= this._nominationLimit)
@@ -200,15 +201,15 @@ export default class Poll extends Scenario {
 		return true;
 	}
 
-	addNominee(toAdd: Nominee) {
+	addNominee(nominatorID: string, toAdd: ItemType) {
 
 		if(this._isVoting)
 			return;
 
-		if(!this.canAddNom(toAdd.id, toAdd))
+		if(!this.canAddNom(nominatorID, toAdd))
 			return;
 
-		this._nominees.set(toAdd.id, toAdd);
+		this._nominees.set(toAdd.id, {nominator: nominatorID, item: toAdd});
 		this.saveState();
 
 	}
@@ -223,8 +224,12 @@ export default class Poll extends Scenario {
 
 	}
 
-	getNomineeList() : Array<Nominee> {
-		return Array.from(this._nominees.values());
+	getNomineeList() : Array<ItemType> {
+
+		return Array.from(this._nominees.values()).map((internalItem) => {
+			return internalItem.item;
+		});
+		
 	}
 
 	setVoteTime(time: Date) {
