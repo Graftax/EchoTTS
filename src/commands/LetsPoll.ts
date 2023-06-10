@@ -1,4 +1,4 @@
-import { ActionRowBuilder, BaseMessageOptions, ButtonBuilder, ButtonStyle, Channel, CommandInteraction, InteractionResponse, SlashCommandBuilder, MappedInteractionTypes, ComponentType, ButtonInteraction } from "discord.js";
+import { ActionRowBuilder, BaseMessageOptions, ButtonBuilder, ButtonStyle, Channel, CommandInteraction, InteractionResponse, SlashCommandBuilder, MappedInteractionTypes, ComponentType, ButtonInteraction, ApplicationCommandOptionType } from "discord.js";
 import { Singleton as MovieDBProvider, PosterSize, TVResult } from "../MovieDBProvider.js";
 import { Command } from "../Commander";
 import { Singleton as ScenarioManager } from "../ScenarioManager.js";
@@ -12,6 +12,41 @@ import { MessageComponentInteraction } from "discord.js";
 
 interface ShowOrMovie extends PollItem {
 
+}
+
+function msToDurationString(durationMS: number): string {
+
+	let durationSecs = durationMS / 1000;
+	
+	let days = Math.floor(durationSecs / (24 * 60 * 60));
+	durationSecs = durationSecs % (24 * 60 * 60);
+
+	let hours = Math.floor(durationSecs / (60 * 60));
+	durationSecs = durationSecs % (60 * 60);
+
+	let minutes = Math.floor(durationSecs / 60);
+	let seconds = Math.floor(durationSecs % 60);
+
+	return `${days > 0 	? days + "d " 		: ""}`
+		+ `${hours > 0 		? hours + "h " 		: ""}`
+		+ `${minutes > 0 	? minutes + "m " 	: ""}`
+		+ `${seconds > 0 	? seconds + "s " 	: ""}`;
+}
+
+function timeStatusString(scenario: Poll<ShowOrMovie>): string {
+
+	let out = "";
+	let voteTime = scenario.getVoteTime();
+	let voteTimeOffsetMS = voteTime.getTime() - Date.now();
+	if(voteTimeOffsetMS > 0)
+		out += `\nTime Until Vote: ${msToDurationString(voteTimeOffsetMS)}`;
+	
+	let endTime = scenario.getEndTime();
+	let endTimeOffsetMs = endTime.getTime() - Math.max(voteTime.getTime(), Date.now());
+	if(endTimeOffsetMs > 0)
+		out += `\nVoting Time Left: ${msToDurationString(endTimeOffsetMs)}`;
+
+	return out;
 }
 
 function createNominationMessage(title: string, imgUrl: string, channel: Channel): BaseMessageOptions {
@@ -86,6 +121,11 @@ command.addSubcommand((subCommand) => {
 			return option.setName("nomination-limit")
 				.setDescription("The max number of nominations one person can make. (Default: 1)")
 				.setMinValue(1);
+		})
+
+		.addMentionableOption((option) => {
+			return option.setName("mention")
+				.setDescription("The mention to use for poll announcements.");
 		});
 
 });
@@ -100,6 +140,8 @@ function runSubcommandCreate(interaction: CommandInteraction) {
 
 	let nomLimit = interaction.options.get("nomination-limit");
 
+	// TODO: Add mentionable for poll announcements.
+
 	pollScenario = new Poll(
 		interaction.user.id,
 		interaction.options.get("hours-before-vote").value as number,
@@ -108,7 +150,8 @@ function runSubcommandCreate(interaction: CommandInteraction) {
 	);
 
 	ScenarioManager.startScenario(interaction.channel, pollScenario);
-	interaction.reply(`${interaction.user.username} has created a poll in this channel. You may nominate with \`/poll nominate\`.`);
+	
+	interaction.reply(`${interaction.user.username} has created a poll in this channel. You may nominate with \`/poll nominate\`.${timeStatusString(pollScenario)}`);
 }
 
 // Nominate ====================================================================
@@ -186,20 +229,35 @@ async function runSubcommandNominate(interaction: CommandInteraction, pollScenar
 
 // remove-nominee ==============================================================
 command.addSubcommand((subCommand) => {
-	return subCommand.setName("remove-nominee")
+	return subCommand.setName("remove")
 	.setDescription("Remove an item from the poll.")
 
 	.addStringOption((option) => {
 	 	return option.setName("title")
-		.setDescription("The name of the show to remove.")
+		.setDescription("The name of the item to remove.")
 	 	.setRequired(true)
 		.setAutocomplete(true);
 	 });
 	
 });
 
-// async function runSubcommandNominate(interaction: CommandInteraction, pollScenario: Poll<ShowOrMovie>) {
+async function runSubcommandRemove(interaction: CommandInteraction, pollScenario: Poll<ShowOrMovie>) {
 
+	let titleOption = interaction.options.get("title");
+	if(titleOption.type != ApplicationCommandOptionType.String)
+		return;
+
+	let uid = titleOption.value as string;
+
+	let item = pollScenario.getItem(uid)
+	let res = pollScenario.removeItem(uid, interaction.user.id, false);
+
+	if(res)
+		return interaction.reply({content: res, ephemeral: true});
+
+	interaction.reply({content: `${item.name} has been removed by ${interaction.user}`})
+	
+}
 
 // list ========================================================================
 command.addSubcommand((subCommand) => {
@@ -209,8 +267,11 @@ command.addSubcommand((subCommand) => {
 
 function runSubcommandList(interaction: CommandInteraction, pollScenario: Poll<ShowOrMovie>) {
 
+	let content = timeStatusString(pollScenario);
+	
+	content += `\nNominees:\n>>> `;
+
 	let items = pollScenario.getNomineeList();
-	let content = `Nominees:\n>>> `;
 
 	for(let currItem of items) {
 		content += `${currItem.name}\n`;
@@ -224,7 +285,7 @@ function runSubcommandList(interaction: CommandInteraction, pollScenario: Poll<S
 
 // start vote ==================================================================
 command.addSubcommand((subCommand) => {
-	return subCommand.setName("start-vote")
+	return subCommand.setName("start")
 		.setDescription("Ends the nomination time and begins voting immediatly. (Poll Creator Only)");
 });
 
@@ -337,9 +398,7 @@ export default {
 
 		const focusedValue = interaction.options.getFocused() as string;
 		let list = pollScenario.getNomineeList().filter((value) => {
-
 			return value.name.toLowerCase().includes(focusedValue.toLowerCase());
-
 		});
 
 		interaction.respond(
@@ -362,20 +421,27 @@ export default {
 		if(!pollScenario)
 			return interaction.reply({content: "No poll was found in this channel.", ephemeral: true});
 
-		if(interaction.options.getSubcommand() == "nominate")
-			return runSubcommandNominate(interaction, pollScenario);
+		switch (interaction.options.getSubcommand()) {
 
-		if(interaction.options.getSubcommand() == "list")
-			return runSubcommandList(interaction, pollScenario);
+			case "nominate":
+				return runSubcommandNominate(interaction, pollScenario);
 
-		if(interaction.options.getSubcommand() == "start-vote")
-			return runSubCommandStartVote(interaction, pollScenario);
+			case "remove":
+				return runSubcommandRemove(interaction, pollScenario);
 
-		if(interaction.options.getSubcommand() == "vote")
-			return runSubCommandVote(interaction, pollScenario);
+			case "list":
+				return runSubcommandList(interaction, pollScenario);
 
-		if(interaction.options.getSubcommand() == "end")
-			return runSubCommandEnd(interaction, pollScenario);
-			
+			case "start":
+				return runSubCommandStartVote(interaction, pollScenario);
+
+			case "vote":
+				return runSubCommandVote(interaction, pollScenario);
+
+			case "end":
+				return runSubCommandEnd(interaction, pollScenario);
+
+		}
+
 	}
 } as Command;

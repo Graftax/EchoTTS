@@ -85,6 +85,14 @@ export default class Poll<ItemType extends PollItem> extends Scenario {
 		return this._isVoting;
 	}
 
+	getVoteTime() : Date {
+		return this._voteTime;
+	}
+
+	getEndTime() : Date {
+		return this._endTime;
+	}
+	
 	private onVoteTimeout = () => {
 
 		if(this._isVoting)
@@ -232,6 +240,15 @@ export default class Poll<ItemType extends PollItem> extends Scenario {
 		this.saveState();
 
 		return undefined;
+	}
+
+	getItem(uid: string) : ItemType {
+
+		if(!this._nominees.has(uid))
+			return null;
+
+		return this._nominees.get(uid).item;
+
 	}
 
 	getNomineeList() : Array<ItemType> {
