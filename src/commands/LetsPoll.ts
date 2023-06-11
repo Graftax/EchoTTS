@@ -151,7 +151,7 @@ function runSubcommandCreate(interaction: CommandInteraction) {
 
 	ScenarioManager.startScenario(interaction.channel, pollScenario);
 	
-	interaction.reply(`${interaction.user.username} has created a poll in this channel. You may nominate with \`/poll nominate\`.${timeStatusString(pollScenario)}`);
+	interaction.reply(`${interaction.user} has created a poll in this channel. You may nominate with \`/poll nominate\`.${timeStatusString(pollScenario)}`);
 }
 
 // Nominate ====================================================================
@@ -206,11 +206,13 @@ async function runSubcommandNominate(interaction: CommandInteraction, pollScenar
 
 		if(currResponse.customId == "cmd-nom") {
 
-			state.poll.addItem(currResponse.user.id, {
+			let res = state.poll.addItem(currResponse.user.id, {
 				uid: id.toString(),
 				name: name,
 				img_url: MovieDBProvider.createImageURL(posterPath, new PosterSize(3))
 			});
+
+			if(res) return {content: res, components: [], embeds: []};
 
 			if(pollChannel.isTextBased())
 				pollChannel.send(`${currResponse.user} nominated ${name}`);

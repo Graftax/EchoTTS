@@ -93,7 +93,33 @@ export default class Poll<ItemType extends PollItem> extends Scenario {
 		return this._endTime;
 	}
 	
-	private onVoteTimeout = () => {
+	private async getMentionString() : Promise<string> {
+
+		let mentionSet = new Set<string>();
+
+		this._nominees.forEach((value) => {
+			mentionSet.add(value.nominator);
+		});
+
+		Array.from(this._votes.keys()).forEach((value) => {
+			mentionSet.add(value);
+		});
+
+		let out = "";
+		let entryItr = mentionSet.entries();
+
+		for(let [currUid] of entryItr) {
+
+			let currUser = await this.client().users.fetch(currUid);
+			out += `${currUser} `;
+
+		}
+
+		return out;
+
+	}
+
+	private onVoteTimeout = async () => {
 
 		if(this._isVoting)
 			return;
@@ -101,13 +127,15 @@ export default class Poll<ItemType extends PollItem> extends Scenario {
 		this._isVoting = true;
 		this.saveState();
 		
+		let mentionString = await this.getMentionString();
+
 		let pollChannel = this.channel();
 		if(pollChannel.isTextBased())
-			pollChannel.send(`The nomination period has ended, you may now vote. Use \`/poll vote\`.`);
+			pollChannel.send(`${mentionString}\n\n The nomination period has ended, you may now vote. Use \`/poll vote\`.`);
 
 	}
 
-	private onEndTimeout = () => {
+	private onEndTimeout = async () => {
 
 		let bordaCount = this.doBordaCount();
 
@@ -137,9 +165,10 @@ export default class Poll<ItemType extends PollItem> extends Scenario {
 
 		if(channel.isTextBased()) {
 
+			let mentions = await this.getMentionString();
 			let winnerCount = bordaCount.get(winner.item.uid);
 			channel.send({
-				content: `The poll has finished.`,
+				content: `${mentions}\n\n The poll has finished.`,
 				embeds: [{
 					title: `**The winner is ${winner.item.name}!**`,
 					description: `${winnerCount} Points (${winnerCount / maxPoints * 100}%)`,
@@ -212,7 +241,7 @@ export default class Poll<ItemType extends PollItem> extends Scenario {
 		this._nominees.set(toAdd.uid, {nominator: nominatorID, item: toAdd});
 		this.saveState();
 
-		return undefined;
+		return null;
 
 	}
 
