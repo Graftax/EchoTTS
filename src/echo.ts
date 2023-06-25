@@ -7,7 +7,7 @@ import { Singleton as Commander } from './Commander.js';
 import { Singleton as DataStorage } from './DataStorage.js';
 import { Singleton as ScenarioManager } from './ScenarioManager.js';
 import { Singleton as MovieDBProvider } from './MovieDBProvider.js';
-import IterativeSort from './IterativeSort.js';
+import TVMazeProvider from './TVMazeProvider.js';
 
 // Construct Core Classes
 // =============================================================================

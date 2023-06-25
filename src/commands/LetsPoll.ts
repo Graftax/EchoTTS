@@ -1,14 +1,10 @@
 import { ActionRowBuilder, BaseMessageOptions, ButtonBuilder, ButtonStyle, Channel, CommandInteraction, InteractionResponse, SlashCommandBuilder, MappedInteractionTypes, ComponentType, ButtonInteraction, ApplicationCommandOptionType } from "discord.js";
-import { Singleton as MovieDBProvider, PosterSize, TVResult } from "../MovieDBProvider.js";
 import { Command } from "../Commander";
 import { Singleton as ScenarioManager } from "../ScenarioManager.js";
 import Poll, { PollItem } from "../scenarios/Poll.js";
 import IterativeSort from "../IterativeSort.js";
 import { MessageComponentInteraction } from "discord.js";
-
-// https://developers.themoviedb.org/3/getting-started/authentication
-// https://developers.themoviedb.org/3/search/search-tv-shows
-// Use v4-api https://github.com/thetvdb/v4-api
+import TVMazeProvider, { SearchResult } from "../TVMazeProvider.js";
 
 interface ShowOrMovie extends PollItem {
 
@@ -49,7 +45,7 @@ function timeStatusString(scenario: Poll<ShowOrMovie>): string {
 	return out;
 }
 
-function createNominationMessage(title: string, imgUrl: string, channel: Channel): BaseMessageOptions {
+function createNominationMessage(item: SearchResult, channel: Channel): BaseMessageOptions {
 
 	const row = new ActionRowBuilder<ButtonBuilder>();
 
@@ -72,8 +68,10 @@ function createNominationMessage(title: string, imgUrl: string, channel: Channel
 		content: `Select which show you would like to nominate.`,
 		components: [row],
 		embeds: [{
-			title: title,
-			image: { url: imgUrl }
+			title: item.show.name,
+			image: { url: item.show.image?.medium },
+			description: item.show.summary,
+			url: item.show.url
 		}]
 	};
 
@@ -173,22 +171,22 @@ async function runSubcommandNominate(interaction: CommandInteraction, pollScenar
 		return interaction.reply({ content:"Nomination is unavailable while the poll is voting.", ephemeral: true });
 
 	let title = interaction.options.get("title", true);
-	let value = await MovieDBProvider.searchTV(title.value as string);
+	
+	let searchResults = await TVMazeProvider.search(title.value as string);
 
-	if(value.results.length <= 0)
+	if(searchResults.length <= 0)
 		return interaction.reply({ content: "No results found.", ephemeral: true });
 
-	let result = value.results[0];
+	let result = searchResults[0];
 	let pollChannel = pollScenario.channel();
 
-	let response = await interaction.reply({...createNominationMessage(result.name,
-		MovieDBProvider.createImageURL(result.poster_path, new PosterSize(3)),
+	let response = await interaction.reply({...createNominationMessage(result,
 		pollChannel
 	), ephemeral: true});
 
 	let state = {
 		index: 0,
-		searched: value.results,
+		searched: searchResults,
 		poll: pollScenario
 	};
 
@@ -200,16 +198,16 @@ async function runSubcommandNominate(interaction: CommandInteraction, pollScenar
 		if(currResponse.customId == "cmd-prev")
 			state.index = Math.max(0, state.index - 1);
 
-		let id = state.searched[state.index].id;
-		let name = state.searched[state.index].name;
-		let posterPath = state.searched[state.index].poster_path;
+		let id = state.searched[state.index].show.id;
+		let name = state.searched[state.index].show.name;
+		let posterPath = state.searched[state.index].show.image?.medium;
 
 		if(currResponse.customId == "cmd-nom") {
 
 			let res = state.poll.addItem(currResponse.user.id, {
 				uid: id.toString(),
 				name: name,
-				img_url: MovieDBProvider.createImageURL(posterPath, new PosterSize(3))
+				img_url: posterPath
 			});
 
 			if(res) return {content: res, components: [], embeds: []};
@@ -220,10 +218,7 @@ async function runSubcommandNominate(interaction: CommandInteraction, pollScenar
 			return { content: `Nomination submitted. ✔`, components: [] };
 		}
 
-		return createNominationMessage(name,
-			MovieDBProvider.createImageURL(posterPath, new PosterSize(3)),
-			pollChannel
-		);
+		return createNominationMessage(state.searched[state.index], pollChannel);
 
 	});
 

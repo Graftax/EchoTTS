@@ -1,5 +1,8 @@
 import axios from "axios";
 
+// https://developers.themoviedb.org/3/getting-started/authentication
+// https://developers.themoviedb.org/3/search/search-tv-shows
+
 const API_URL = "https://api.themoviedb.org/3";
 
 export interface TVResult {
