@@ -8,7 +8,8 @@ const hoursToMs = 3600000;
 export interface PollItem {
 	uid: string;
 	name: string,
-	img_url: string
+	img_url: string,
+	url: string
 }
 
 interface InternalItem<ItemType> {
@@ -26,7 +27,7 @@ interface SaveState<ItemType> {
 	votes: [string, string[]][]
 }
 
-export default class Poll<ItemType extends PollItem> extends Scenario {
+export default class Poll<ItemType extends Required<PollItem>> extends Scenario {
 
 	private _isVoting = false;
 	private _creatorID: string = null;

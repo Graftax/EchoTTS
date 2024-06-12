@@ -207,7 +207,8 @@ async function runSubcommandNominate(interaction: CommandInteraction, pollScenar
 			let res = state.poll.addItem(currResponse.user.id, {
 				uid: id.toString(),
 				name: name,
-				img_url: posterPath
+				img_url: posterPath,
+				url: state.searched[state.index].show.url
 			});
 
 			if(res) return {content: res, components: [], embeds: []};
@@ -271,6 +272,8 @@ function runSubcommandList(interaction: CommandInteraction, pollScenario: Poll<S
 	let items = pollScenario.getNomineeList();
 
 	for(let currItem of items) {
+
+		// TODO: Make these in to links, which means adding URLs to the poll itself.
 		content += `${currItem.name}\n`;
 	}
 
