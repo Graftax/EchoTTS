@@ -26,12 +26,7 @@ export default {
 			return;
 		}
 
-		let ttsScenario = ScenarioManager.getScenario(userVoiceState.channel, TextToSpeech.name) as TextToSpeech;
-		if(!ttsScenario) {
-			ttsScenario = new TextToSpeech();
-			ScenarioManager.startScenario(userVoiceState.channel, ttsScenario);
-		}
-
+		let ttsScenario = ScenarioManager?.startScenario(TextToSpeech, userVoiceState.channel) as TextToSpeech;
 		ttsScenario.addSubject(interaction.user.id);
 
 		let userVoiceChannel = userVoiceState.channel as Channel;

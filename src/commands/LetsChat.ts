@@ -12,11 +12,7 @@ export default {
 		if(!interaction.channel)
 			return;
 			
-		let chatScenario = ScenarioManager.getScenario(interaction.channel, Chatbot.name) as Chatbot;
-		if(!chatScenario) {
-			chatScenario = new Chatbot();
-			ScenarioManager.startScenario(interaction.channel, chatScenario);
-		}
+		ScenarioManager?.startScenario(Chatbot, interaction.channel);
 
 		interaction.reply({content: "I'm here to talk. 👍"});
 	}

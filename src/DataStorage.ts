@@ -10,6 +10,10 @@ interface Item {
 	props: Object
 }
 
+interface DefaultData {
+	items: [];
+}
+
 export default class DataStorage {
 
 	private m_version: number;
@@ -26,9 +30,7 @@ export default class DataStorage {
 		this.m_adapter = new FileSync(filepath);
 		this.m_db = low(this.m_adapter);
 
-		let defaultStructure = {};
-		// Add via index so we can use the name constant.
-		defaultStructure[DataContainerName] = [];
+		let defaultStructure: DefaultData = { items: [] };
 		this.m_db.defaults(defaultStructure).write();
 	}
 

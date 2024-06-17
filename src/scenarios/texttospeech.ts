@@ -1,7 +1,7 @@
 import { Channel, Client, CommandInteraction, Events, Message, VoiceChannel, VoiceState } from "discord.js";
 import * as DSVoice from '@discordjs/voice';
 import { createDiscordJSAdapter } from "../adapter.js";
-import { Scenario } from "../Scenario.js";
+import { Scenario, EndFunc, SaveFunc, LoadFunc } from "../Scenario.js";
 import { Singleton as DataStorage } from "../DataStorage.js";
 import { request } from 'https';
 import { Readable } from 'stream';
@@ -16,10 +16,15 @@ interface SpeakItem {
 	options: VoiceOptions;
 }
 
+interface UserSettings {
+	gender: string,
+	language: string
+}
+
 export function setGender(interaction: CommandInteraction) {
 
 	let option = interaction.options.get("gender", false)
-	if(!option)
+	if(!option?.value)
 		return;
 
 	DataStorage.setProperty(`tts/${interaction.user.id}`, "gender", option.value);
@@ -29,14 +34,14 @@ export function setGender(interaction: CommandInteraction) {
 export function setLanguage(interaction: CommandInteraction) {
 
 	let option = interaction.options.get("language", false)
-	if(!option)
+	if(!option?.value)
 		return;                                                                                        
 
 	DataStorage.setProperty(`tts/${interaction.user.id}`, "language", option.value);
 
 }
 
-function getDefaultSettingsObject(): object {
+function getDefaultSettingsObject(): UserSettings {
 
 	return {
 		"gender": "FEMALE",
@@ -45,7 +50,7 @@ function getDefaultSettingsObject(): object {
 
 }
 
-export function getSettings(userID: string) : object {
+export function getSettings(userID: string) : UserSettings {
 
 	let settings = DataStorage.getItem(`tts/${userID}`);
 	return Object.assign(getDefaultSettingsObject(), settings);
@@ -54,31 +59,24 @@ export function getSettings(userID: string) : object {
 
 export default class TextToSpeech extends Scenario {
 
-
-	private _connection: DSVoice.VoiceConnection = null;
+	private _connection: DSVoice.VoiceConnection | null = null;
 	private _subjects: Set<string> = new Set();
 	private _player = DSVoice.createAudioPlayer();
 	private _queue: Array<SpeakItem> = new Array();
 
-	init(channel: Channel, client: Client) {
+	init(): void {
 
-		super.init(channel, client);
-
-		if(!channel.isVoiceBased()) {
-			console.error("Scenario failed: channel is not voice based.");
-			return this.end();
-		}
-
-		let voiceChannel = channel as VoiceChannel;
+		let voiceChannel = this.channel as VoiceChannel;
 
 		let prevConnection = DSVoice.getVoiceConnection(voiceChannel.guildId);
 		if(prevConnection){
 			console.warn(`Scenario failed: voice connection already in use in ${voiceChannel.name}`);
-			return this.end();
+			this.end();
+			return;
 		}
 
-		client.on(Events.VoiceStateUpdate, this.onVoiceStateUpdate);
-		client.on(Events.MessageCreate, this.onMessageCreate);
+		this.client.on(Events.VoiceStateUpdate, this.onVoiceStateUpdate);
+		this.client.on(Events.MessageCreate, this.onMessageCreate);
 
 		this._connection = DSVoice.joinVoiceChannel({
 			channelId: voiceChannel.id,
@@ -91,6 +89,10 @@ export default class TextToSpeech extends Scenario {
 		this._player.on("stateChange", this.onPlayerStateChange);
 	}
 
+	get name() {
+		return "TextToSpeech";
+	}
+
 	fixConnectionTimeoutBug() {
 
 		// This stateChange listener is to fix a bug where voice connections time out.
@@ -100,7 +102,7 @@ export default class TextToSpeech extends Scenario {
 			clearInterval(newUdp?.keepAliveInterval);
 		}
 
-		this._connection.on('stateChange', (oldState, newState) => {
+		this._connection?.on('stateChange', (oldState, newState) => {
 			Reflect.get(oldState, 'networking')?.off('stateChange', networkStateChangeHandler);
 			Reflect.get(newState, 'networking')?.on('stateChange', networkStateChangeHandler);
 		});
@@ -109,8 +111,8 @@ export default class TextToSpeech extends Scenario {
 
 	shutdown() {
 
-		this.client().removeListener(Events.VoiceStateUpdate, this.onVoiceStateUpdate);
-		this.client().removeListener(Events.MessageCreate, this.onMessageCreate);
+		this.client.removeListener(Events.VoiceStateUpdate, this.onVoiceStateUpdate);
+		this.client.removeListener(Events.MessageCreate, this.onMessageCreate);
 
 		if(this._connection)
 			this._connection.destroy();
@@ -121,7 +123,7 @@ export default class TextToSpeech extends Scenario {
 		this._subjects.add(userID);
 	}
 
-	speak(toSpeak: string, vOpts: VoiceOptions, onError: (err: Error) => void = null) {
+	speak(toSpeak: string, vOpts: VoiceOptions, onError: (err: Error) => void | undefined) {
 
 		const reqBodyObject = {
 			"input": { "text": toSpeak },
@@ -195,7 +197,7 @@ export default class TextToSpeech extends Scenario {
 		if(!state.channel)
 			return false;
 
-		if(state.channel.id != this.channel().id)
+		if(state.channel.id != this.channel.id)
 			return false;
 
 		return state.channel.members.size <= 1;
@@ -206,10 +208,14 @@ export default class TextToSpeech extends Scenario {
 		if(!state.channel)
 			return false;
 
-		if(state.channel.id != this.channel().id)
+		if(state.channel.id != this.channel.id)
 			return false;
 
-		return state.member.id == this.client().user.id;
+		const thisUser = this.client.user;
+		if(!thisUser)
+			return false;
+
+		return state.member?.id === thisUser.id;
 	}
 
 	onVoiceStateUpdate = (oldState: VoiceState, newState: VoiceState) => {
@@ -221,15 +227,15 @@ export default class TextToSpeech extends Scenario {
 
 	onMessageCreate = (message: Message) => {
 
-		if(message.channel.id != this.channel().id)
+		if(message.channel.id != this.channel.id)
 			return;
 		
 		if(!this._subjects.has(message.author.id))
 			return;
 	
 		let toSpeak: SpeakItem = { text: message.content, options: {
-			languageCode: getSettings(message.author.id)["language"],
-			ssmlGender: getSettings(message.author.id)["gender"]
+			languageCode: getSettings(message.author.id).language,
+			ssmlGender: getSettings(message.author.id).gender
 		}};
 
 		if(this._player.state.status != DSVoice.AudioPlayerStatus.Idle) {

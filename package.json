@@ -28,6 +28,7 @@
   },
   "scripts": {
     "start": "node dist/echo.js",
+		"start-gate": "node dist/the_gate/Universe.js",
     "build": "node precompile.js && tsc && node pack-res.js",
     "watch": "tsc -w"
   },

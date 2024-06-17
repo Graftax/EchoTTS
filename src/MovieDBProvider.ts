@@ -68,14 +68,25 @@ function arrayClamp(array: Array<any>, value: number) : number {
 
 }
 
+class SizeContainer
+{
+	[k: string]: Array<string>;
+	public _logo_sizes: Array<string> = [];
+	public _poster_sizes: Array<string> = [];
+	public _profile_sizes: Array<string> = [];
+	public _still_sizes: Array<string> = [];
+}
+
 export default class MovieDBProvider {
 
-	private _img_base_url: string;
-	private _logo_sizes: Array<string>;
-	private _poster_sizes: Array<string>;
-	private _profile_sizes: Array<string>;
-	private _still_sizes: Array<string>;
-
+	private _img_base_url: string = "";
+	private _sizes: SizeContainer = {
+		_logo_sizes: [],
+		_poster_sizes: [],
+	 	_profile_sizes: [],
+	 	_still_sizes: []
+	};
+	
 	async init() {
 
 		let response = await axios.get(`${API_URL}/configuration`, {
@@ -85,10 +96,10 @@ export default class MovieDBProvider {
 		});
 
 		this._img_base_url = response.data.images.base_url;
-		this._logo_sizes = response.data.images.logo_sizes;
-		this._poster_sizes = response.data.images.poster_sizes;
-		this._profile_sizes = response.data.images.profile_sizes;
-		this._still_sizes = response.data.images.still_sizes;
+		this._sizes._logo_sizes = response.data.images.logo_sizes;
+		this._sizes._poster_sizes = response.data.images.poster_sizes;
+		this._sizes._profile_sizes = response.data.images.profile_sizes;
+		this._sizes._still_sizes = response.data.images.still_sizes;
 
 	}
 
@@ -106,7 +117,7 @@ export default class MovieDBProvider {
 
 	createImageURL(path: string, size: ImageSize) : string {
 
-		let sizeArray = this[size.arrayName()] as Array<string>;
+		let sizeArray = this._sizes[size.arrayName()];
 		let index = arrayClamp(sizeArray, size.value());
 		let sizeString = sizeArray[index];
 

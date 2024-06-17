@@ -1,5 +1,5 @@
 import { ActionRowBuilder, BaseMessageOptions, ButtonBuilder, ButtonStyle, Channel, CommandInteraction, InteractionResponse, SlashCommandBuilder, MappedInteractionTypes, ComponentType, ButtonInteraction, ApplicationCommandOptionType } from "discord.js";
-import { Command } from "../Commander";
+import { Command } from "../Commander.js";
 import { Singleton as ScenarioManager } from "../ScenarioManager.js";
 import Poll, { PollItem } from "../scenarios/Poll.js";
 import IterativeSort from "../IterativeSort.js";
@@ -89,8 +89,13 @@ async function interactionLoop(response: InteractionResponse, onMessage: Interac
 
 	interaction.update(newMessage);
 
-	if(newMessage?.components?.length > 0)
-		interactionLoop(response, onMessage);
+	if(!newMessage.components)
+		return;
+
+	if(newMessage.components.length <= 0)
+		return;
+
+	interactionLoop(response, onMessage);
 }
 
 let command = new SlashCommandBuilder();
@@ -130,7 +135,10 @@ command.addSubcommand((subCommand) => {
 
 function runSubcommandCreate(interaction: CommandInteraction) {
 
-	let pollScenario = ScenarioManager.getScenario(interaction.channel, Poll.name) as Poll<ShowOrMovie>;
+	if(!interaction.channel)
+		return;
+
+	let pollScenario = ScenarioManager?.getScenario(Poll<ShowOrMovie>, interaction.channel) as Poll<ShowOrMovie>;
 
 	// If a poll already exists, then do not create another.
 	if(pollScenario)
@@ -140,15 +148,15 @@ function runSubcommandCreate(interaction: CommandInteraction) {
 
 	// TODO: Add mentionable for poll announcements.
 
-	pollScenario = new Poll(
+	pollScenario = ScenarioManager?.startScenario(Poll<ShowOrMovie>, interaction.channel) as Poll<ShowOrMovie>;
+	
+	pollScenario.configurePoll(
 		interaction.user.id,
 		interaction.options.get("hours-before-vote").value as number,
 		interaction.options.get("hours-spent-voting").value as number,
 		nomLimit ? nomLimit.value as number : 1
-	);
+	)
 
-	ScenarioManager.startScenario(interaction.channel, pollScenario);
-	
 	interaction.reply(`${interaction.user} has created a poll in this channel. You may nominate with \`/poll nominate\`.${timeStatusString(pollScenario)}`);
 }
 
@@ -178,7 +186,7 @@ async function runSubcommandNominate(interaction: CommandInteraction, pollScenar
 		return interaction.reply({ content: "No results found.", ephemeral: true });
 
 	let result = searchResults[0];
-	let pollChannel = pollScenario.channel();
+	let pollChannel = pollScenario.channel;
 
 	let response = await interaction.reply({...createNominationMessage(result,
 		pollChannel
@@ -242,12 +250,18 @@ command.addSubcommand((subCommand) => {
 async function runSubcommandRemove(interaction: CommandInteraction, pollScenario: Poll<ShowOrMovie>) {
 
 	let titleOption = interaction.options.get("title");
+	if(!titleOption)
+		return;
+
 	if(titleOption.type != ApplicationCommandOptionType.String)
 		return;
 
 	let uid = titleOption.value as string;
 
-	let item = pollScenario.getItem(uid)
+	let item = pollScenario.getItem(uid);
+	if(!item)
+		return;
+	
 	let res = pollScenario.removeItem(uid, interaction.user.id, false);
 
 	if(res)
@@ -314,7 +328,7 @@ async function runSubCommandVote(interaction: CommandInteraction, pollScenario: 
 	if(nomList.length <= 1)
 		return await interaction.reply({content: `There are not enough nominations to vote on. (${nomList.length})`, ephemeral: true});
 
-	let compInteraction: ButtonInteraction = null;
+	let compInteraction: ButtonInteraction;
 	
 	let sorted = await IterativeSort(nomList, 3, async (set, resolve) => {
 
@@ -366,7 +380,7 @@ async function runSubCommandVote(interaction: CommandInteraction, pollScenario: 
 		embeds: []
 	});
 
-	let pollChannel = pollScenario.channel();
+	let pollChannel = pollScenario.channel;
 	if(pollChannel.isTextBased())
 		pollChannel.send(`${compInteraction.user} has voted!`);
 }
@@ -392,7 +406,10 @@ export default {
 	slashcommand: command,
 	autocomplete(interaction) {
 
-		let pollScenario = ScenarioManager.getScenario(interaction.channel, Poll.name) as Poll<ShowOrMovie>;
+		if(!interaction.channel)
+			return;
+
+		let pollScenario = ScenarioManager?.getScenario(Poll, interaction.channel) as Poll<ShowOrMovie>;
 		if(!pollScenario)
 			interaction.respond([]);
 
@@ -408,12 +425,15 @@ export default {
 	},
 	execute(interaction) {
 
+		if(!interaction.channel)
+			return;
+
 		// We have to narrow the type
 		// https://www.reddit.com/r/Discordjs/comments/w3bhv0/interactionoptionsgetsubcommand_wont_work/
 		if(!interaction.isChatInputCommand())
 			return;
 
-		let pollScenario = ScenarioManager.getScenario(interaction.channel, Poll.name) as Poll<ShowOrMovie>;
+		let pollScenario = ScenarioManager?.getScenario(Poll, interaction.channel) as Poll<ShowOrMovie>;
 		
 		if(interaction.options.getSubcommand() == "create" && !pollScenario)
 			return runSubcommandCreate(interaction);

@@ -8,20 +8,20 @@ fs.readFile("precompile.json", "utf-8").then((value) => {
 	let config = JSON.parse(value);
 
 	// For each object in the "indexes" list
-	config.indexes.forEach((element) => {
+	config.indexes.forEach((currIndex) => {
 		
 		// Get the current list of files
-		fs.readdir(element.path).then((currFilepaths) => {
+		fs.readdir(currIndex.path).then((currFilepaths) => {
 
-			console.log(`Generating index for ${element.path} at ${element.file}`);
+			console.log(`Generating index for ${currIndex.path} at ${currIndex.file}`);
 			// Calculate os-neutral path
-			let currOutPath = path.resolve(element.file);
+			let currOutPath = path.resolve(currIndex.file);
 
 			// Create the list of import strings at the top of the file
 			// We filter out the output file in case its within the same directory.
 			let importList = currFilepaths.map((currPath) => {
 
-				let currFullPath = path.resolve(element.path, currPath);
+				let currFullPath = path.resolve(currIndex.path, currPath);
 				if(currFullPath == currOutPath)
 					return null;
 
@@ -52,22 +52,25 @@ fs.readFile("precompile.json", "utf-8").then((value) => {
 			fs.mkdir(path.dirname(currOutPath), {recursive: true});
 
 			// Write the the output, "w" to create if necessary
-			fs.open(element.file, "w").then(async (outFile) => {
+			fs.open(currIndex.file, "w").then(async (outFile) => {
 
-				await outFile.write("// This is an auto-generated file. Do not edit.\n");
+				await outFile.write(`// This is an auto-generated file. Do not edit.\n`);
+				await outFile.write(`import { Command } from "../Commander.js"\n`);
+				await outFile.write(`import { IScenarioConstructor } from "../Scenario.js"\n`);
 				
-				for(let currImport of importList) {
+				for(let currImport of importList)
 					await outFile.write(`import ${currImport.name} from "${currImport.from}"\n`);
-				}
 
 				await outFile.write("\n");
-				await outFile.write("export default {\n");
+				await outFile.write(`export function* generator(): IterableIterator<${currIndex.keyType}> {\n`);
 
-				for(let currImport of importList) {
-					await outFile.write(`\t${currImport.name}: ${currImport.name},\n`);
-				}
+				for(let currImport of importList)
+					await outFile.write(`\tyield ${currImport.name};\n`);
 
-				await outFile.write("};");
+				await outFile.write("}\n");
+
+				await outFile.write("\n");
+				await outFile.write(`export default generator();`);
 
 			});
 
