@@ -1,32 +1,29 @@
-import { Scenario, EndFunc, SaveFunc, LoadFunc } from "../Scenario.js";
-import {AxiosResponse} from "openai/node_modules/axios";
-import { Channel, Client, Events, Message, TextChannel } from "discord.js";
+import { Scenario } from "../Scenario.js";
+import { AxiosResponse } from "axios";
+import { Events, Message } from "discord.js";
 import fs from "fs";
-import { Configuration, OpenAIApi, ChatCompletionRequestMessage, ChatCompletionRequestMessageRoleEnum, CreateCompletionResponse } from "openai";
+import OpenAI from 'openai';
 
 export default class Chatbot extends Scenario {
 
 	_messages = new Array<Message>();
 	_timeout: NodeJS.Timer | null = null;
 
-	_openai = new OpenAIApi(new Configuration({
+	_openai = new OpenAI({
 		apiKey: process.env.OPENAI_API_KEY,
-	}));
+	});
 
 	init(): void {
-
 		this.client.on(Events.MessageCreate, this.onMessageCreate);
-		
 	}
 
 	shutdown() {
-		this.client.removeListener(Events.MessageCreate, this.onMessageCreate);
+		this.client.off(Events.MessageCreate, this.onMessageCreate);
 	}
 
 	get name() {
 		return "Chatbot";
 	}
-
 
 	getPromptString(): string {
 
@@ -38,21 +35,21 @@ export default class Chatbot extends Scenario {
 		return message.author.id == this.client.user?.id;
 	}
 
-	createMessageArray(userInput: Message): Array<ChatCompletionRequestMessage> {
+	// createMessageArray(userInput: Message): Array<ChatCompletionRequestMessage> {
 
-		let outArray = new Array<ChatCompletionRequestMessage>();
+	// 	let outArray = new Array<ChatCompletionRequestMessage>();
 
-		outArray.push({ role: "system", content: "" });
+	// 	outArray.push({ role: "system", content: "" });
 
-		this._messages.forEach((message) => {
-			let role = this.isMessageAuthor(message) ? ChatCompletionRequestMessageRoleEnum.Assistant : ChatCompletionRequestMessageRoleEnum.User;
-			outArray.push({ role: role, content: message.content });
-		});
+	// 	this._messages.forEach((message) => {
+	// 		let role = this.isMessageAuthor(message) ? ChatCompletionRequestMessageRoleEnum.Assistant : ChatCompletionRequestMessageRoleEnum.User;
+	// 		outArray.push({ role: role, content: message.content });
+	// 	});
 
-		outArray.push({ role: "user", content: userInput.content });
+	// 	outArray.push({ role: "user", content: userInput.content });
 
-		return outArray;
-	}
+	// 	return outArray;
+	// }
 
 	createPrompt(userInput: Message): string {
 
@@ -86,7 +83,7 @@ export default class Chatbot extends Scenario {
 		if (this.isMessageAuthor(message))
 			return;
 
-		this._openai.createCompletion({
+		this._openai.completions.create({
 			model: "text-davinci-003",
 			prompt: this.createPrompt(message),
 			max_tokens: 500,
@@ -109,10 +106,9 @@ export default class Chatbot extends Scenario {
 		this._timeout.refresh();
 	}
 
-	onCompletion = (completion: AxiosResponse<CreateCompletionResponse, any>) => {
+	onCompletion = (completion: OpenAI.Completions.Completion) => {
 
-		let output = completion.data.choices[0].text;
-
+		let output = completion.choices[0].text;
 		if(!output || output.length <= 0)
 			output = "❌";
 		

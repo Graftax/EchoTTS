@@ -37,6 +37,9 @@ export class ScenarioManager {
 
 		this._client.on(Events.ClientReady, (client) => {
 
+			if(!DataStorage)
+				return;
+
 			let persistantScenarios = DataStorage.findItemsByID("system/scenarios");
 
 			persistantScenarios.forEach(async (value, key) => {
@@ -107,22 +110,30 @@ export class ScenarioManager {
 				freshScenario.shutdown();
 				
 				this.removeScenario(channel.id, freshScenario);
-				DataStorage.deleteItem(getScenarioDBPath(channel.id, freshScenario));
+				DataStorage?.deleteItem(getScenarioDBPath(channel.id, freshScenario));
 			},
 
 			(toSave) => {
-				DataStorage.setProperty(getScenarioDBPath(channel.id, freshScenario), "data", toSave);
+				DataStorage?.setProperty(getScenarioDBPath(channel.id, freshScenario), "data", toSave);
 			},
 
 			() => {
-				return DataStorage.getProperty(getScenarioDBPath(channel.id, freshScenario), "data");
+
+				if(!DataStorage)
+					return { };
+
+				let prop = DataStorage.getProperty(getScenarioDBPath(channel.id, freshScenario), "data");
+				if(!prop)
+					return { };
+
+				return prop;
 			}
 
 		);
 
 		this.pushScenario(channel.id, freshScenario);
 		
-		if(freshScenario.isPersistant) {
+		if(freshScenario.isPersistant && DataStorage) {
 			const dbPath = getScenarioDBPath(channel.id, freshScenario);
 			let item = DataStorage.getItem(dbPath);
 			DataStorage.setItem(dbPath, item != undefined ? item : {});

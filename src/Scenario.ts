@@ -3,7 +3,7 @@ import { PropValue } from "./DataStorage.js";
 
 export type EndFunc = () => void;
 export type SaveFunc = (p: PropValue) => void;
-export type LoadFunc= () => PropValue;
+export type LoadFunc = () => PropValue;
 
 export interface IScenarioConstructor {
 	new (channel: Channel, client: Client, end: EndFunc, save: SaveFunc, load: LoadFunc) : IScenario;

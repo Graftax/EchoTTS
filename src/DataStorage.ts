@@ -1,128 +1,111 @@
-import low from 'lowdb';
-import FileSync from 'lowdb/adapters/FileSync.js';
+import { Low } from 'lowdb';
+import { JSONFilePreset } from 'lowdb/node'
 
 export type PropValue = boolean|string|number|object;
 
-const DataContainerName = "items";
+type ItemPayload = { [key: string] : PropValue };
 
-interface Item {
-	id: string,
-	props: Object
-}
-
-interface DefaultData {
-	items: [];
+interface DataContainer {
+	version: number;
+	items: Map<string, ItemPayload>;
 }
 
 export default class DataStorage {
 
 	private m_version: number;
-	private m_adapter: typeof FileSync;
-	private m_db: low.LowdbSync<object>;
+	private m_db: Low<DataContainer> | null = null;
 
-	constructor() {
+	constructor(filepath: string) {
+
+		this.m_version = 2;
+		let defaultData: DataContainer = { version: this.m_version, items: new Map<string, ItemPayload>() };
+		JSONFilePreset(filepath, defaultData).then(db => this.m_db = db);
 
 	}
 
-	init(filepath: string, version: number) {
+	getItem(id: string) : ItemPayload | undefined {
 
-		this.m_version = version;
-		this.m_adapter = new FileSync(filepath);
-		this.m_db = low(this.m_adapter);
+		if(!this.m_db)
+			return undefined;
 
-		let defaultStructure: DefaultData = { items: [] };
-		this.m_db.defaults(defaultStructure).write();
+		return this.m_db.data.items.get(id);
+
 	}
 
-	getItem(id: string) : Object {
+	getProperty(id: string, propName: string, defaultValue = undefined) : PropValue | undefined {
 
-		const item = this.m_db.get(DataContainerName)
-			.find({ id: id })
-			.value() as Item;
+		const props = this.getItem(id);
 
-		if(!item) return undefined;
-
-		return item.props;
-	}
-
-	getProperty(id: string, propName: string, defaultValue = undefined) : PropValue {
-
-		const props = this.getItem(id) as Item;
-		if(!props) return defaultValue;
+		if(!props) 
+			return defaultValue;
 		
 		if(props.hasOwnProperty(propName))
 			return props[propName];
 
 		return defaultValue;
+		
 	}
 
-	setItem(id: string, props: Object) {
+	setItem(id: string, props: ItemPayload) {
 
-		let item = this.m_db.get(DataContainerName)
-			.find({ id: id })
-			.value();
+		this.m_db?.update(({ items }) => {
 
-		if(!item)
-			this.m_db.get(DataContainerName)
-				.push({ id: id, props: {}})
-				.write();
+			let currItem = items.get(id);
+			currItem = { ...currItem, ...props };
+			items.set(id, currItem);
 
-		this.m_db.get(DataContainerName)
-			.find({id: id})
-			.set<Object>("props", props)
-			.write();
+		});
+
 	}
 
 	setProperty(id: string, propName: string, value: PropValue) {
 
-		let item = this.m_db.get(DataContainerName)
-			.find({ id: id })
-			.value();
+		let prop: ItemPayload = {};
+		prop[propName] = value;
+		this.setItem(id, prop);
 
-		if(!item)
-			this.m_db.get(DataContainerName)
-				.push({ id: id, props: {}})
-				.write();
-
-		this.m_db.get(DataContainerName)
-			.find({id: id})
-			.set<PropValue>(`props.${propName}`, value)
-			.write();
 	}
 
 	deleteItem(id: string) {
 
-		this.m_db.get(DataContainerName)
-			.remove({id: id})
-			.write();
+		this.m_db?.update(({ items }) => {
+
+			items.delete(id);
+
+		});
+
 	}
 
 	deleteProperty(id: string, propName: string) {
 
-		this.m_db.get(DataContainerName)
-			.find({id: id})
-			.unset(`props.${propName}`)
-			.write();
+		this.m_db?.update(({ items }) => {
+
+			let currItem = items.get(id);
+			if(!currItem) return;
+			delete currItem[propName];
+
+		});
+
 	}
 
 	// Returns a map of items with IDs that start with idFragment
-	findItemsByID(idFragment: string) : Map<string, Object> {
+	findItemsByID(idFragment: string) : Map<string, ItemPayload> {
 
-		let outMap = new Map<string, Object>();
+		if(!this.m_db)
+			return new Map;
 
-		let foundItems = this.m_db.get(DataContainerName)
-			.filter((value: Item, index, collection) => {
-				return value.id.startsWith(idFragment);
-			})
-			.value() as Array<Item>;
-
-		for(let currItem of foundItems)
-			outMap.set(currItem.id, currItem.props);
-
-		return outMap;
+		let entryList = [...this.m_db.data.items];
+		let filtered = entryList.filter(entry => entry[0].startsWith(idFragment));
+		return new Map(filtered);
+	
 	}
 
 }
 
-let Singleton = new DataStorage();
-export { Singleton };
+let Singleton: DataStorage | null = null;
+
+function Create(filepath: string) {
+	Singleton = new DataStorage(filepath);
+}
+
+export { Singleton, Create }

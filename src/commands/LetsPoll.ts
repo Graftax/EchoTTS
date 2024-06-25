@@ -138,6 +138,14 @@ function runSubcommandCreate(interaction: CommandInteraction) {
 	if(!interaction.channel)
 		return;
 
+	let hrsBeforeVote = interaction.options.get("hours-before-vote")?.value;
+	if(!hrsBeforeVote)
+		return;
+
+	let hrsSpentVoting = interaction.options.get("hours-spent-voting")?.value;
+	if(!hrsSpentVoting)
+		return;
+
 	let pollScenario = ScenarioManager?.getScenario(Poll<ShowOrMovie>, interaction.channel) as Poll<ShowOrMovie>;
 
 	// If a poll already exists, then do not create another.
@@ -152,8 +160,8 @@ function runSubcommandCreate(interaction: CommandInteraction) {
 	
 	pollScenario.configurePoll(
 		interaction.user.id,
-		interaction.options.get("hours-before-vote").value as number,
-		interaction.options.get("hours-spent-voting").value as number,
+		hrsBeforeVote as number,
+		hrsSpentVoting as number,
 		nomLimit ? nomLimit.value as number : 1
 	)
 
@@ -328,7 +336,7 @@ async function runSubCommandVote(interaction: CommandInteraction, pollScenario: 
 	if(nomList.length <= 1)
 		return await interaction.reply({content: `There are not enough nominations to vote on. (${nomList.length})`, ephemeral: true});
 
-	let compInteraction: ButtonInteraction;
+	let compInteraction: ButtonInteraction | undefined;
 	
 	let sorted = await IterativeSort(nomList, 3, async (set, resolve) => {
 
@@ -357,11 +365,17 @@ async function runSubCommandVote(interaction: CommandInteraction, pollScenario: 
 
 		}
 
+		if(!compInteraction)
+			return;
+		
 		let buttonResponse = await compInteraction.update(newMessage);
 		compInteraction = await buttonResponse.awaitMessageComponent({componentType: ComponentType.Button});
 		resolve(Number(compInteraction.customId));
 		
 	}); // IterativeSort
+
+	if(!compInteraction)
+		return;
 
 	let ranking = sorted.map((value) => {
 		return value.uid;
@@ -374,15 +388,15 @@ async function runSubCommandVote(interaction: CommandInteraction, pollScenario: 
 
 	pollScenario.setVote(compInteraction.user.id, ranking);
 
+	let pollChannel = pollScenario.channel;
+	if(pollChannel.isTextBased())
+		pollChannel.send(`${compInteraction.user} has voted!`);
+
 	compInteraction.update({
 		content: `Voting completed, your ranking:\n${rankingText}`,
 		components: [],
 		embeds: []
 	});
-
-	let pollChannel = pollScenario.channel;
-	if(pollChannel.isTextBased())
-		pollChannel.send(`${compInteraction.user} has voted!`);
 }
 
 // end =========================================================================

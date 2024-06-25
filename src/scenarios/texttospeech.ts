@@ -1,7 +1,7 @@
 import { Channel, Client, CommandInteraction, Events, Message, VoiceChannel, VoiceState } from "discord.js";
 import * as DSVoice from '@discordjs/voice';
 import { createDiscordJSAdapter } from "../adapter.js";
-import { Scenario, EndFunc, SaveFunc, LoadFunc } from "../Scenario.js";
+import { Scenario } from "../Scenario.js";
 import { Singleton as DataStorage } from "../DataStorage.js";
 import { request } from 'https';
 import { Readable } from 'stream';
@@ -27,7 +27,7 @@ export function setGender(interaction: CommandInteraction) {
 	if(!option?.value)
 		return;
 
-	DataStorage.setProperty(`tts/${interaction.user.id}`, "gender", option.value);
+	DataStorage?.setProperty(`tts/${interaction.user.id}`, "gender", option.value);
 
 }
 
@@ -37,7 +37,7 @@ export function setLanguage(interaction: CommandInteraction) {
 	if(!option?.value)
 		return;                                                                                        
 
-	DataStorage.setProperty(`tts/${interaction.user.id}`, "language", option.value);
+	DataStorage?.setProperty(`tts/${interaction.user.id}`, "language", option.value);
 
 }
 
@@ -52,8 +52,11 @@ function getDefaultSettingsObject(): UserSettings {
 
 export function getSettings(userID: string) : UserSettings {
 
+	if(!DataStorage)
+		return getDefaultSettingsObject();
+
 	let settings = DataStorage.getItem(`tts/${userID}`);
-	return Object.assign(getDefaultSettingsObject(), settings);
+	return {...getDefaultSettingsObject(), ...settings};
 
 }
 
@@ -111,8 +114,8 @@ export default class TextToSpeech extends Scenario {
 
 	shutdown() {
 
-		this.client.removeListener(Events.VoiceStateUpdate, this.onVoiceStateUpdate);
-		this.client.removeListener(Events.MessageCreate, this.onMessageCreate);
+		this.client.off(Events.VoiceStateUpdate, this.onVoiceStateUpdate);
+		this.client.off(Events.MessageCreate, this.onMessageCreate);
 
 		if(this._connection)
 			this._connection.destroy();
