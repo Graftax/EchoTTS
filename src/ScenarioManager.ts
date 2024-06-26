@@ -1,138 +1,168 @@
 import { Channel, Client, Events } from "discord.js";
 import { Singleton as DataStorage } from "./DataStorage.js";
-import { Scenario } from "./Scenario.js";
+import { Scenario, IScenarioConstructor, IScenario } from "./Scenario.js";
 import ScenarioIndex from "./index/scenarios.js";
+import { channel } from "diagnostics_channel";
 
-function createScenarioHandle(channelID: string, toSave: Scenario) {
-	return `${channelID}!${toSave.constructor.name}`;
+function createScenarioHandle(channelID: string, sceneStructor: IScenarioConstructor) {
+	return `${channelID}!${sceneStructor.name}`;
 }
 
 function extractFromHandle(input: string) {
 	
 	let res = /(\w*)!(\w*)$/.exec(input);
+
+	if(!res)
+		return { channelID: undefined, className: undefined };
+
 	if(res.length < 3)
-		return undefined;
+		return { channelID: undefined, className: undefined };
 
 	return { channelID: res[1], className: res[2] };
 }
 
 const ScenarioPath = "system/scenarios";
-function getScenarioDBPath(channelID: string, toSave: Scenario) {
-	return `${ScenarioPath}/${createScenarioHandle(channelID, toSave)}`;
+function getScenarioDBPath(channelID: string, sceneStructor: IScenarioConstructor) {
+	return `${ScenarioPath}/${createScenarioHandle(channelID, sceneStructor)}`;
 }
 
+//
 export class ScenarioManager {
 
-	private _client: Client = null;
-	private _scenarios: Map<string, Array<Scenario>> = new Map();
+	private _client: Client;
+	private _scenarios: Map<string, Array<IScenario>> = new Map();
 
-	constructor() {
-
-	}
-
-	init(client: Client) {
+	constructor(client: Client) {
 
 		this._client = client;
 
-		let persistantScenarios = DataStorage.findItemsByID("system/scenarios");
+		this._client.on(Events.ClientReady, (client) => {
 
-		persistantScenarios.forEach((value, key) => {
+			if(!DataStorage)
+				return;
 
-			let {channelID, className} = extractFromHandle(key);
+			let persistantScenarios = DataStorage.findItemsByID("system/scenarios");
 
-			client.on(Events.ClientReady, (client) => {
+			persistantScenarios.forEach(async (value, key) => {
+	
+				let {channelID, className} = extractFromHandle(key);
+				if(!channelID || !className)
+					return;
 
-				client.channels.fetch(channelID).then((channel) => {
-					this.startScenario(channel, new ScenarioIndex[className]);
-				});
+				const allScenarioTypes = Array.from(ScenarioIndex);
+				const foundConstructor = allScenarioTypes.find(currType => currType.name == className);
+				if(!foundConstructor)
+					return;
 
+				client.channels.fetch(channelID)
+					.then(channel => this.startScenario(foundConstructor, channel!))
+					.catch(reason => this.removeScenario(channelID, foundConstructor))
+	
 			});
 
 		});
+
 	}
 
 	// Puts scenario in to map
-	private pushScenario(channelID: string, toAdd: Scenario) {
+	private pushScenario(channelID: string, toAdd: IScenario) {
 
 		if(!this._scenarios.has(channelID))
 			this._scenarios.set(channelID, new Array<Scenario>());
 
-		this._scenarios.get(channelID).push(toAdd);
+		this._scenarios.get(channelID)?.push(toAdd);
 
 	}
 
 	// Removes scenario from map
-	private removeScenario(channelID: string, toRemove: Scenario) {
+	private removeScenario(channelID: string, sceneStructor: IScenarioConstructor) {
 
-		if(!this._scenarios.has(channelID))
+		// Removed saved data if its going away.
+		const dbPath = getScenarioDBPath(channelID, sceneStructor);
+		DataStorage?.deleteItem(dbPath);
+
+		const channelScenarios = this._scenarios.get(channelID);
+		if(!channelScenarios)
 			return;
 
-		let filtered = this._scenarios.get(channelID).filter((value) => {
-			return value != toRemove;
+		let filtered = channelScenarios.filter((value) => {
+			return value.builder != sceneStructor;
 		});
 
 		this._scenarios.set(channelID, filtered);
 
-		if(this._scenarios.get(channelID).length <= 0)
+		if(filtered.length <= 0)
 			this._scenarios.delete(channelID);
 	}
 
-	startScenario(channel: Channel, toStart: Scenario): boolean {
+	startScenario(scenarioConstructor: IScenarioConstructor, channel: Channel): IScenario | undefined {
 
 		if(!this._client)
-			return false;
+			return undefined;
 
-		if(this.getScenario(channel, toStart.constructor.name))
-			return false;
+		const foundScenario = this.getScenario(scenarioConstructor, channel);
+		if(foundScenario)
+			return foundScenario;
 
-		console.log(`Starting ${toStart.constructor.name} in ${channel}`);
-		this.pushScenario(channel.id, toStart);
+		console.log(`Starting ${scenarioConstructor.name} in ${channel}`);
+		
+		let freshScenario: IScenario = new scenarioConstructor(channel, this._client,
 
-		const newScenarioPath = getScenarioDBPath(channel.id, toStart);
+			() => { // Shutdown
 
-		if(toStart.isPersistant()) {
-			let item = DataStorage.getItem(newScenarioPath);
-			DataStorage.setItem(newScenarioPath, item != undefined ? item : {});
+				freshScenario.shutdown();
+				this.removeScenario(channel.id, freshScenario.builder);
+				DataStorage?.deleteItem(getScenarioDBPath(channel.id, freshScenario.builder));
+
+			},
+
+			(toSave) => { // Save
+
+				DataStorage?.setProperty(getScenarioDBPath(channel.id, freshScenario.builder), "data", toSave);
+
+			},
+
+			() => { // Load
+
+				if(!DataStorage) return undefined;
+
+				let prop = DataStorage.getProperty(getScenarioDBPath(channel.id, freshScenario.builder), "data");
+				if(!prop) return undefined;
+
+				return prop;
+			}
+
+		);
+
+		this.pushScenario(channel.id, freshScenario);
+		
+		if(freshScenario.isPersistant && DataStorage) {
+			const dbPath = getScenarioDBPath(channel.id, freshScenario.builder);
+			let item = DataStorage.getItem(dbPath);
+			DataStorage.setItem(dbPath, item != undefined ? item : {});
 		}
 
-		toStart.end = () => {
-			console.log(`Ending ${toStart.constructor.name} in ${channel}`);
-			toStart.shutdown();
-			
-			this.removeScenario(channel.id, toStart);
-			DataStorage.deleteItem(newScenarioPath);
-		}; // end = ()
+		freshScenario.init();
 
-		toStart.save = (toSave) => {
-			DataStorage.setProperty(newScenarioPath, "data", toSave);
-		}; // save = (toSave)
-
-		toStart.load = () => {
-			return DataStorage.getProperty(newScenarioPath, "data");
-		}; // load = ()
-
-		toStart.init(channel, this._client);
-
-		return true;
+		return freshScenario;
 	}
 
-	getScenario(channel: Channel, scenarioName: string): Scenario | null {
+	getScenario(classParameter: IScenarioConstructor, channel: Channel): IScenario | undefined {
 
-		let scenario = this._scenarios.get(channel.id);
-		if(!scenario)
-			return null;
+		let channelScenarios = this._scenarios.get(channel.id);
+		if(!channelScenarios?.length)
+			return undefined;
 
-		let filtered = scenario.filter((value) => {
-			return value.constructor.name == scenarioName;
-		});
-
-		if(filtered.length <= 0)
-			return null;
-
-		return filtered[0];
+		const foundScenario = channelScenarios.find(sce => sce.builder == classParameter);
+		return foundScenario;
 	}
 	
 }
 
-let Singleton = new ScenarioManager;
-export { Singleton }
+let Singleton: ScenarioManager | null = null;
+
+function Create(client: Client) {
+	Singleton = new ScenarioManager(client);
+}
+
+export { Singleton, Create }

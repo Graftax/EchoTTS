@@ -1,132 +1,117 @@
 import { Scenario } from "../Scenario.js";
-import {AxiosResponse} from "openai/node_modules/axios";
-import { Channel, Client, Events, Message, TextChannel } from "discord.js";
+import { Events, Message } from "discord.js";
 import fs from "fs";
-import { Configuration, OpenAIApi, ChatCompletionRequestMessage, ChatCompletionRequestMessageRoleEnum, CreateCompletionResponse } from "openai";
+import OpenAI from 'openai';
+import { encodingForModel } from "js-tiktoken";
 
 export default class Chatbot extends Scenario {
 
-	_messages = new Array<Message>();
-	_timeout: ReturnType<typeof setTimeout> = null;
-
-	_openai = new OpenAIApi(new Configuration({
+	_openai = new OpenAI({
 		apiKey: process.env.OPENAI_API_KEY,
-	}));
+	});
 
-	init(channel: Channel, client: Client) {
-
-		super.init(channel, client);
-
-		if (!channel.isTextBased()) {
-			console.error("Scenario failed: channel is not text based.");
-			return this.end();
-		}
-
-		client.on(Events.MessageCreate, this.onMessageCreate);
-
+	init(): void {
+		this.client.on(Events.MessageCreate, this.onMessageCreate);
 	}
 
 	shutdown() {
-		this.client().removeListener(Events.MessageCreate, this.onMessageCreate);
+		this.client.off(Events.MessageCreate, this.onMessageCreate);
 	}
 
-	getPromptString(): string {
+	get isPersistant() {
+		return true;
+	}
+
+	getSystemString(): string {
 
 		//TODO: Break prompt in to different pieces, like personality, etc.
 		return fs.readFileSync("res/introduction.txt").toString();
 	}
 
-	createMessageArray(userInput: Message): Array<ChatCompletionRequestMessage> {
-
-		let outArray = new Array<ChatCompletionRequestMessage>();
-
-		outArray.push({ role: "system", content: "" });
-
-		this._messages.forEach((message) => {
-			let role = message.author.id == this.client().user.id ? ChatCompletionRequestMessageRoleEnum.Assistant : ChatCompletionRequestMessageRoleEnum.User;
-			outArray.push({ role: role, content: message.content });
-		});
-
-		outArray.push({ role: "user", content: userInput.content });
-
-		return outArray;
+	isMessageAuthor(message: Message) : boolean {
+		return message.author.id == this.client.user?.id;
 	}
 
-	createPrompt(userInput: Message): string {
+	// createMessageArray(userInput: Message): Array<OpenAI.Chat.Completions.ChatCompletionMessage> {
 
-		let outString = "";
+	// 	let outArray = new Array<OpenAI.Chat.Completions.ChatCompletionMessage>();
 
-		outString += this.getPromptString() + "\n";
+	// 	outArray.push({ role: "system", content: "" });
 
-		this._messages.forEach((message) => {
+	// 	this._messages.forEach((message) => {
+	// 		let role = this.isMessageAuthor(message) ? ChatCompletionRequestMessageRoleEnum.Assistant : ChatCompletionRequestMessageRoleEnum.User;
+	// 		outArray.push({ role: role, content: message.content });
+	// 	});
 
+	// 	outArray.push({ role: "user", content: userInput.content });
+
+	// 	return outArray;
+	// }
+
+	async createPrompt(): Promise<string> {
+
+		if(!this.channel.isTextBased())
+			return "";
+
+		const encoding = encodingForModel("gpt-3.5-turbo-instruct");
+		let systemPrompt = this.getSystemString() + "\n";
+		let messagesPrompt = "";
+
+		const messages = (await this.channel.messages.fetch({ limit: 50 }));
+		for(const entry of messages) {
+
+			const message = entry[1];
 			let username = message.author.username;
-			if(message.author.id == this.client().user.id)
+
+			if(this.isMessageAuthor(message))
 				username = "{Echo}";
 
-			outString += `${username}:${message.content}\t`;
-		});
+			const currMsgText = `${username}: ${message.content}\n`;
+			if(encoding.encode(systemPrompt + currMsgText + messagesPrompt).length >= 1900)
+				break;
 
-		outString += "{Echo}:"
-		return outString;
+			messagesPrompt = currMsgText + messagesPrompt;
+		}
+
+		messagesPrompt += "{Echo}: ";
+		
+		return `${systemPrompt}${messagesPrompt}`;
 	}
 
-	onMessageCreate = (message: Message) => {
+	onMessageCreate = async (message: Message) => {
 
-		if (message.channel.id != this.channel().id)
+		if (message.channel.id != this.channel.id)
 			return;
 
-		this._messages.push(message);
-
-		if (this._messages.length > 10)
-			this._messages.shift();
-
-		if (message.author.id == this.client().user.id)
+		if(!this.channel.isTextBased())
 			return;
 
-		this._openai.createCompletion({
-			model: "text-davinci-003",
-			prompt: this.createPrompt(message),
-			max_tokens: 500,
-			temperature: 0.8,
+		if (this.isMessageAuthor(message))
+			return;
+
+		message.channel.sendTyping();
+
+		let freshPrompt = await this.createPrompt();
+
+		this._openai.completions.create({
+			model: "gpt-3.5-turbo-instruct",
+			prompt: freshPrompt,
+			max_tokens: 1900,
+			temperature: 0.85,
 			user: "discord_userid_" + message.author.id
-		}).then(this.onCompletion);
+		}).then(this.onCompletion).catch(reason => console.log(reason));
 
-		// this._openai.createChatCompletion({
-		// 	model: "gpt-3.5-turbo",
-		// 	messages: this.createMessageArray(message)
-		// }).then((completion) => {
-		// 		this._channel.send(completion.data.choices[0].message);
-		// }).catch((reason) => {
-		// 	console.error(reason);
-		// });
-
-		if (!this._timeout)
-			this._timeout = setTimeout(this.onTimeout, 1000 * 60 * 30);
-
-		this._timeout.refresh();
 	}
 
-	onCompletion = (completion: AxiosResponse<CreateCompletionResponse, any>) => {
+	onCompletion = (result: OpenAI.Completions.Completion) => {
 
-		let output = completion.data.choices[0].text;
-
-		if(output.length <= 0)
+		let output = result.choices[0].text;
+		if(!output || output.length <= 0)
 			output = "❌";
 		
-		let channel = this.channel();
+		let channel = this.channel;
 		if(channel.isTextBased())
 			channel.send(output);
 
 	}
-
-	onTimeout = () => {
-
-		let channel = this.channel();
-		if(channel.isTextBased())
-			channel.send("I'm leaving, goodbye!");
-
-		this.end();
-
-	}
-}
+};

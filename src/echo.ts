@@ -4,8 +4,8 @@ if (process.env.NODE_ENV !== 'production')
 
 import { Client, Events, GatewayIntentBits, Partials } from 'discord.js';
 import { Singleton as Commander } from './Commander.js';
-import { Singleton as DataStorage } from './DataStorage.js';
-import { Singleton as ScenarioManager } from './ScenarioManager.js';
+import { Create as CreateDataStorageManager } from './DataStorage.js';
+import { Create as CreateScenarioManager } from './ScenarioManager.js';
 import { Singleton as MovieDBProvider } from './MovieDBProvider.js';
 
 // Construct Core Classes
@@ -22,14 +22,15 @@ const g_Client = new Client({
 });
 
 await MovieDBProvider.init();
-DataStorage.init("db.json", 1);
-ScenarioManager.init(g_Client);
+CreateDataStorageManager("db.json");
+CreateScenarioManager(g_Client);
+
 
 // Client event hooks
 // =============================================================================
 g_Client.on(Events.ClientReady, async () => {
 
-	g_Client.user.setPresence({
+	g_Client.user?.setPresence({
 		status: "online",
 		afk: false
 	});

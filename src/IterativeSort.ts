@@ -2,12 +2,12 @@
 
 class ChainNode<ValueType> {
 
-	value: ValueType = null;
-	private parent: ChainNode<ValueType> = null;
+	_value: ValueType | null;
+	private parent: ChainNode<ValueType> | null = null;
 	children: Array<ChainNode<ValueType>> = new Array();
 
-	constructor(value: ValueType) {
-		this.value = value;
+	constructor(value: ValueType | null) {
+		this._value = value;
 	}
 
 	setParent(newParent: ChainNode<ValueType>) {
@@ -29,7 +29,7 @@ type TestFunction<T> = (set: Array<T>, resolve: (number: number) => void) => voi
 
 export default function IterativeSort<T>(values: Array<T>, testSize: number, testFunc: TestFunction<T>): Promise<Array<T>> {
 
-	let rootNode = new ChainNode(null);
+	let rootNode = new ChainNode<T>(null);
 
 	values.forEach((value) => {
 
@@ -55,7 +55,7 @@ function iterate<T>(rootNode: ChainNode<T>, testSize: number, testFunc: TestFunc
 
 	let shuffledSet = nextSet.sort((a, b) => {return 0.5 - Math.random()});
 	let limitedSet = shuffledSet.splice(0, testSize);
-	let limitedItems = limitedSet.map((value) => { return value.value; });
+	let limitedItems = limitedSet.flatMap(value => value._value != null ? value._value : []);
 
 	testFunc(limitedItems, (choice: number) => {
 		
@@ -86,7 +86,9 @@ function toArray<T>(rootNode: ChainNode<T>) : Array<T> {
 
 	while(rootNode) {
 
-		res.push(rootNode.value);
+		if(rootNode._value)
+			res.push(rootNode._value);
+		
 		rootNode = rootNode.children[0];
 	}
 

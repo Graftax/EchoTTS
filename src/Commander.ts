@@ -13,8 +13,8 @@ export default class Commander {
 
 	constructor() {
 
-		for(let currName in CommandIndex)
-			this.m_commandMap.set(CommandIndex[currName].slashcommand.name, CommandIndex[currName]);
+		for(const command of CommandIndex)
+			this.m_commandMap.set(command.slashcommand.name, command);
 
 	}
 
@@ -25,13 +25,13 @@ export default class Commander {
 		for(let currCommand of this.m_commandMap.values())
 			cmdJSON.push(currCommand.slashcommand.toJSON());
 
-		const rest = new REST({version: '10'}).setToken(process.env.DISCORD_TOKEN);
+		const rest = new REST({version: '10'}).setToken(process.env.DISCORD_TOKEN ?? "");
 
-		rest.put(Routes.applicationCommands(process.env.DISCORD_APPLICATION_ID), {
+		rest.put(Routes.applicationCommands(process.env.DISCORD_APPLICATION_ID ?? ""), {
 			body: cmdJSON
-		}).then((value: Array<any>) => {
+		}).then((value: any) => {
 
-			value.forEach(element => {
+			value.forEach((element: any) => {
 				console.log(`Registered ${element.name}`);
 			});
 

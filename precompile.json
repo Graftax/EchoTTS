@@ -3,11 +3,13 @@
 	[
 		{
 			"path": "src/commands/",
-			"file": "src/index/commands.ts"
+			"file": "src/index/commands.ts",
+			"keyType": "Command"
 		},
 		{
 			"path": "src/scenarios/",
-			"file": "src/index/scenarios.ts"
+			"file": "src/index/scenarios.ts",
+			"keyType": "IScenarioConstructor"
 		}
 	]
 }

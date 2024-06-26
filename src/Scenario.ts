@@ -1,34 +1,66 @@
 import { Channel, Client } from "discord.js";
 import { PropValue } from "./DataStorage.js";
 
+export type EndFunc = () => void;
+export type SaveFunc = (p: PropValue) => void;
+export type LoadFunc = () => PropValue | undefined;
 
-export abstract class Scenario {
+export interface IScenarioConstructor {
+	new (channel: Channel, client: Client, end: EndFunc, save: SaveFunc, load: LoadFunc) : IScenario;
+}
 
-	private _channel: Channel = null;
-	private _client: Client = null;
+export interface IScenario {
 
-	end: () => void = null;
-	save: (toSave: PropValue) => void = null;
-	load: () => PropValue = null;
+	init() : void;
+	shutdown() : void;
 
-	init(channel: Channel, client: Client) : void {
+	get builder(): IScenarioConstructor;
+	get isPersistant(): boolean;
+	get channel(): Channel;
+	get client(): Client;
+
+}
+
+export abstract class Scenario implements IScenario {
+
+	private _channel: Channel;
+	private _client: Client;
+
+	public end: EndFunc;
+	protected save: SaveFunc;
+	protected load: LoadFunc;
+
+	constructor(channel: Channel, client: Client, 
+		end: EndFunc, save: SaveFunc, load: LoadFunc)
+	{
 		this._channel = channel;
 		this._client = client;
+		this.end = end;
+		this.save = save;
+		this.load = load;
+	}
+
+	get builder(): IScenarioConstructor {
+		return Object.getPrototypeOf(this).constructor as IScenarioConstructor;
+	}
+
+	init() : void {
+		
 	};
 
 	shutdown() : void {
 
 	};
 
-	isPersistant(): boolean {
+	get isPersistant(): boolean {
 		return false;
 	};
 
-	channel(): Channel {
+	get channel(): Channel {
 		return this._channel;
 	}
 
-	client(): Client {
+	get client(): Client {
 		return this._client;
 	}
 

@@ -1,13 +1,23 @@
 {
+	"$schema": "https://json.schemastore.org/tsconfig",
+
+	"_version": "18.2.0",
+
 	"compilerOptions": {
+		"lib": ["es2022"],
+    "module": "node16",
+    "target": "es2022",
+
+		"strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "moduleResolution": "node16",
+
 		"allowSyntheticDefaultImports": true,
 		"composite": true,
-		"module": "ES2022",
-		"moduleResolution": "node",
 		"outDir": "./dist",
 		"rootDir": "./src",
 		"sourceMap": true,
-		"target": "ES2022",
 		"tsBuildInfoFile": "./dist/.tsbuildinfo"
 	},
 	"include": ["src/**/*"]
