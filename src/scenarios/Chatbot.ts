@@ -6,7 +6,6 @@ import OpenAI from 'openai';
 
 export default class Chatbot extends Scenario {
 
-	_messages = new Array<Message>();
 	_timeout: NodeJS.Timer | null = null;
 
 	_openai = new OpenAI({
@@ -25,6 +24,10 @@ export default class Chatbot extends Scenario {
 		return "Chatbot";
 	}
 
+	get isPersistant() {
+		return true;
+	}
+
 	getPromptString(): string {
 
 		//TODO: Break prompt in to different pieces, like personality, etc.
@@ -35,9 +38,9 @@ export default class Chatbot extends Scenario {
 		return message.author.id == this.client.user?.id;
 	}
 
-	// createMessageArray(userInput: Message): Array<ChatCompletionRequestMessage> {
+	// createMessageArray(userInput: Message): Array<OpenAI.Chat.Completions.ChatCompletionMessage> {
 
-	// 	let outArray = new Array<ChatCompletionRequestMessage>();
+	// 	let outArray = new Array<OpenAI.Chat.Completions.ChatCompletionMessage>();
 
 	// 	outArray.push({ role: "system", content: "" });
 
@@ -51,45 +54,50 @@ export default class Chatbot extends Scenario {
 	// 	return outArray;
 	// }
 
-	createPrompt(userInput: Message): string {
+	async createPrompt(): Promise<string> {
 
 		let outString = "";
 
 		outString += this.getPromptString() + "\n";
 
-		this._messages.forEach((message) => {
+		if(!this.channel.isTextBased())
+			return "";
+
+		const messages = await this.channel.messages.fetch({ limit: 20, cache: true });
+
+		messages.reverse().forEach((message) => {
 
 			let username = message.author.username;
 			if(this.isMessageAuthor(message))
 				username = "{Echo}";
 
-			outString += `${username}:${message.content}\t`;
+			outString += `${username}: ${message.content}\n`;
 		});
 
 		outString += "{Echo}:"
 		return outString;
 	}
 
-	onMessageCreate = (message: Message) => {
+	onMessageCreate = async (message: Message) => {
 
 		if (message.channel.id != this.channel.id)
 			return;
 
-		this._messages.push(message);
-
-		if (this._messages.length > 10)
-			this._messages.shift();
+		if(!this.channel.isTextBased())
+			return;
 
 		if (this.isMessageAuthor(message))
 			return;
 
+		let freshPrompt = await this.createPrompt();
+
 		this._openai.completions.create({
-			model: "text-davinci-003",
-			prompt: this.createPrompt(message),
-			max_tokens: 500,
+			model: "gpt-3.5-turbo-instruct",
+			prompt: freshPrompt,
+			max_tokens: 1000,
 			temperature: 0.8,
 			user: "discord_userid_" + message.author.id
-		}).then(this.onCompletion);
+		}).then(this.onCompletion).catch(reason => console.log(reason));
 
 		// this._openai.createChatCompletion({
 		// 	model: "gpt-3.5-turbo",

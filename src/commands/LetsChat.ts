@@ -12,8 +12,18 @@ export default {
 		if(!interaction.channel)
 			return;
 			
-		ScenarioManager?.startScenario(Chatbot, interaction.channel);
+		let chatScenario = ScenarioManager?.getScenario(Chatbot, interaction.channel) as Chatbot;
 
+		if(chatScenario) {
+
+			chatScenario.end();
+			interaction.reply({content: "I'm leaving. 👋"});
+			return;
+
+		}
+
+		ScenarioManager?.startScenario(Chatbot, interaction.channel);
 		interaction.reply({content: "I'm here to talk. 👍"});
+		
 	}
 } as Command;

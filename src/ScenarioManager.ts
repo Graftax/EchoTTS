@@ -1,6 +1,6 @@
 import { Channel, Client, Events } from "discord.js";
 import { Singleton as DataStorage } from "./DataStorage.js";
-import { Scenario, EndFunc, SaveFunc, LoadFunc, IScenarioConstructor, IScenario } from "./Scenario.js";
+import { Scenario, IScenarioConstructor, IScenario } from "./Scenario.js";
 import ScenarioIndex from "./index/scenarios.js";
 
 function createScenarioHandle(channelID: string, toSave: IScenario) {
@@ -120,11 +120,11 @@ export class ScenarioManager {
 			() => {
 
 				if(!DataStorage)
-					return { };
+					return undefined;
 
 				let prop = DataStorage.getProperty(getScenarioDBPath(channel.id, freshScenario), "data");
 				if(!prop)
-					return { };
+					return undefined;
 
 				return prop;
 			}

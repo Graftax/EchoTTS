@@ -3,7 +3,7 @@ import { PropValue } from "./DataStorage.js";
 
 export type EndFunc = () => void;
 export type SaveFunc = (p: PropValue) => void;
-export type LoadFunc = () => PropValue;
+export type LoadFunc = () => PropValue | undefined;
 
 export interface IScenarioConstructor {
 	new (channel: Channel, client: Client, end: EndFunc, save: SaveFunc, load: LoadFunc) : IScenario;
@@ -26,7 +26,7 @@ export abstract class Scenario implements IScenario {
 	private _channel: Channel;
 	private _client: Client;
 
-	protected end: EndFunc;
+	public end: EndFunc;
 	protected save: SaveFunc;
 	protected load: LoadFunc;
 

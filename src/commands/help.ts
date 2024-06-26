@@ -8,7 +8,7 @@ export default {
 	async execute(interaction) {
 
 		let cmdList = Commander.getCommandList();
-		let output: string = "Commands I support in DMs:\n";
+		let output: string = "Commands I support:\n";
 
 		cmdList.forEach(cmdName => {
 			output += `\t${cmdName}\n`; 

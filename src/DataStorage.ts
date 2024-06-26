@@ -7,7 +7,7 @@ type ItemPayload = { [key: string] : PropValue };
 
 interface DataContainer {
 	version: number;
-	items: Map<string, ItemPayload>;
+	items: { [index: string]: ItemPayload };
 }
 
 export default class DataStorage {
@@ -18,7 +18,7 @@ export default class DataStorage {
 	constructor(filepath: string) {
 
 		this.m_version = 2;
-		let defaultData: DataContainer = { version: this.m_version, items: new Map<string, ItemPayload>() };
+		let defaultData: DataContainer = { version: this.m_version, items: {} };
 		JSONFilePreset(filepath, defaultData).then(db => this.m_db = db);
 
 	}
@@ -28,7 +28,7 @@ export default class DataStorage {
 		if(!this.m_db)
 			return undefined;
 
-		return this.m_db.data.items.get(id);
+		return this.m_db.data.items[id];
 
 	}
 
@@ -50,9 +50,9 @@ export default class DataStorage {
 
 		this.m_db?.update(({ items }) => {
 
-			let currItem = items.get(id);
+			let currItem = items[id];
 			currItem = { ...currItem, ...props };
-			items.set(id, currItem);
+			items[id] = currItem;
 
 		});
 
@@ -70,7 +70,7 @@ export default class DataStorage {
 
 		this.m_db?.update(({ items }) => {
 
-			items.delete(id);
+			delete items[id];
 
 		});
 
@@ -80,7 +80,7 @@ export default class DataStorage {
 
 		this.m_db?.update(({ items }) => {
 
-			let currItem = items.get(id);
+			let currItem = items[id];
 			if(!currItem) return;
 			delete currItem[propName];
 
@@ -94,8 +94,17 @@ export default class DataStorage {
 		if(!this.m_db)
 			return new Map;
 
-		let entryList = [...this.m_db.data.items];
-		let filtered = entryList.filter(entry => entry[0].startsWith(idFragment));
+		let filtered = new Array<[string, ItemPayload]>;
+
+		let itemIDs = Object.keys(this.m_db.data.items);
+
+		for(let currID of itemIDs) {
+
+			if(currID.startsWith(idFragment))
+				filtered.push([currID, this.m_db.data.items[currID]]);
+
+		}
+
 		return new Map(filtered);
 	
 	}
