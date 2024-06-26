@@ -76,10 +76,6 @@ export default class Poll<ItemType extends Required<PollItem>> extends Scenario 
 			Lt.clearTimeout(this._endTimeout);
 	}
 
-	get name() {
-		return "Poll";
-	}
-
 	get isPersistant() {
 		return true;
 	}

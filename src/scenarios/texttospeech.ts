@@ -92,10 +92,6 @@ export default class TextToSpeech extends Scenario {
 		this._player.on("stateChange", this.onPlayerStateChange);
 	}
 
-	get name() {
-		return "TextToSpeech";
-	}
-
 	fixConnectionTimeoutBug() {
 
 		// This stateChange listener is to fix a bug where voice connections time out.

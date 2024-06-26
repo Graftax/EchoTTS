@@ -1,12 +1,10 @@
 import { Scenario } from "../Scenario.js";
-import { AxiosResponse } from "axios";
 import { Events, Message } from "discord.js";
 import fs from "fs";
 import OpenAI from 'openai';
+import { encodingForModel } from "js-tiktoken";
 
 export default class Chatbot extends Scenario {
-
-	_timeout: NodeJS.Timer | null = null;
 
 	_openai = new OpenAI({
 		apiKey: process.env.OPENAI_API_KEY,
@@ -20,15 +18,11 @@ export default class Chatbot extends Scenario {
 		this.client.off(Events.MessageCreate, this.onMessageCreate);
 	}
 
-	get name() {
-		return "Chatbot";
-	}
-
 	get isPersistant() {
 		return true;
 	}
 
-	getPromptString(): string {
+	getSystemString(): string {
 
 		//TODO: Break prompt in to different pieces, like personality, etc.
 		return fs.readFileSync("res/introduction.txt").toString();
@@ -56,26 +50,32 @@ export default class Chatbot extends Scenario {
 
 	async createPrompt(): Promise<string> {
 
-		let outString = "";
-
-		outString += this.getPromptString() + "\n";
-
 		if(!this.channel.isTextBased())
 			return "";
 
-		const messages = await this.channel.messages.fetch({ limit: 20, cache: true });
+		const encoding = encodingForModel("gpt-3.5-turbo-instruct");
+		let systemPrompt = this.getSystemString() + "\n";
+		let messagesPrompt = "";
 
-		messages.reverse().forEach((message) => {
+		const messages = (await this.channel.messages.fetch({ limit: 50 }));
+		for(const entry of messages) {
 
+			const message = entry[1];
 			let username = message.author.username;
+
 			if(this.isMessageAuthor(message))
 				username = "{Echo}";
 
-			outString += `${username}: ${message.content}\n`;
-		});
+			const currMsgText = `${username}: ${message.content}\n`;
+			if(encoding.encode(systemPrompt + currMsgText + messagesPrompt).length >= 1900)
+				break;
 
-		outString += "{Echo}:"
-		return outString;
+			messagesPrompt = currMsgText + messagesPrompt;
+		}
+
+		messagesPrompt += "{Echo}: ";
+		
+		return `${systemPrompt}${messagesPrompt}`;
 	}
 
 	onMessageCreate = async (message: Message) => {
@@ -89,50 +89,29 @@ export default class Chatbot extends Scenario {
 		if (this.isMessageAuthor(message))
 			return;
 
+		message.channel.sendTyping();
+
 		let freshPrompt = await this.createPrompt();
 
 		this._openai.completions.create({
 			model: "gpt-3.5-turbo-instruct",
 			prompt: freshPrompt,
-			max_tokens: 1000,
-			temperature: 0.8,
+			max_tokens: 1900,
+			temperature: 0.85,
 			user: "discord_userid_" + message.author.id
 		}).then(this.onCompletion).catch(reason => console.log(reason));
 
-		// this._openai.createChatCompletion({
-		// 	model: "gpt-3.5-turbo",
-		// 	messages: this.createMessageArray(message)
-		// }).then((completion) => {
-		// 		this._channel.send(completion.data.choices[0].message);
-		// }).catch((reason) => {
-		// 	console.error(reason);
-		// });
-
-		if (!this._timeout)
-			this._timeout = setTimeout(this.onTimeout, 1000 * 60 * 30);
-
-		this._timeout.refresh();
 	}
 
-	onCompletion = (completion: OpenAI.Completions.Completion) => {
+	onCompletion = (result: OpenAI.Completions.Completion) => {
 
-		let output = completion.choices[0].text;
+		let output = result.choices[0].text;
 		if(!output || output.length <= 0)
 			output = "❌";
 		
 		let channel = this.channel;
 		if(channel.isTextBased())
 			channel.send(output);
-
-	}
-
-	onTimeout = () => {
-
-		let channel = this.channel;
-		if(channel.isTextBased())
-			channel.send("I'm leaving, goodbye!");
-
-		this.end();
 
 	}
 };

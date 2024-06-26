@@ -2,9 +2,10 @@ import { Channel, Client, Events } from "discord.js";
 import { Singleton as DataStorage } from "./DataStorage.js";
 import { Scenario, IScenarioConstructor, IScenario } from "./Scenario.js";
 import ScenarioIndex from "./index/scenarios.js";
+import { channel } from "diagnostics_channel";
 
-function createScenarioHandle(channelID: string, toSave: IScenario) {
-	return `${channelID}!${toSave.constructor.name}`;
+function createScenarioHandle(channelID: string, sceneStructor: IScenarioConstructor) {
+	return `${channelID}!${sceneStructor.name}`;
 }
 
 function extractFromHandle(input: string) {
@@ -21,8 +22,8 @@ function extractFromHandle(input: string) {
 }
 
 const ScenarioPath = "system/scenarios";
-function getScenarioDBPath(channelID: string, toSave: IScenario) {
-	return `${ScenarioPath}/${createScenarioHandle(channelID, toSave)}`;
+function getScenarioDBPath(channelID: string, sceneStructor: IScenarioConstructor) {
+	return `${ScenarioPath}/${createScenarioHandle(channelID, sceneStructor)}`;
 }
 
 //
@@ -53,11 +54,9 @@ export class ScenarioManager {
 				if(!foundConstructor)
 					return;
 
-				const currChannel = await client.channels.fetch(channelID);
-				if(!currChannel)
-						return;
-
-				this.startScenario(foundConstructor, currChannel);
+				client.channels.fetch(channelID)
+					.then(channel => this.startScenario(foundConstructor, channel!))
+					.catch(reason => this.removeScenario(channelID, foundConstructor))
 	
 			});
 
@@ -76,14 +75,18 @@ export class ScenarioManager {
 	}
 
 	// Removes scenario from map
-	private removeScenario(channelID: string, toRemove: IScenario) {
+	private removeScenario(channelID: string, sceneStructor: IScenarioConstructor) {
+
+		// Removed saved data if its going away.
+		const dbPath = getScenarioDBPath(channelID, sceneStructor);
+		DataStorage?.deleteItem(dbPath);
 
 		const channelScenarios = this._scenarios.get(channelID);
 		if(!channelScenarios)
 			return;
 
 		let filtered = channelScenarios.filter((value) => {
-			return value != toRemove;
+			return value.builder != sceneStructor;
 		});
 
 		this._scenarios.set(channelID, filtered);
@@ -105,26 +108,26 @@ export class ScenarioManager {
 		
 		let freshScenario: IScenario = new scenarioConstructor(channel, this._client,
 
-			() => {
-				console.log(`Ending ${scenarioConstructor.name} in ${channel}`);
+			() => { // Shutdown
+
 				freshScenario.shutdown();
-				
-				this.removeScenario(channel.id, freshScenario);
-				DataStorage?.deleteItem(getScenarioDBPath(channel.id, freshScenario));
+				this.removeScenario(channel.id, freshScenario.builder);
+				DataStorage?.deleteItem(getScenarioDBPath(channel.id, freshScenario.builder));
+
 			},
 
-			(toSave) => {
-				DataStorage?.setProperty(getScenarioDBPath(channel.id, freshScenario), "data", toSave);
+			(toSave) => { // Save
+
+				DataStorage?.setProperty(getScenarioDBPath(channel.id, freshScenario.builder), "data", toSave);
+
 			},
 
-			() => {
+			() => { // Load
 
-				if(!DataStorage)
-					return undefined;
+				if(!DataStorage) return undefined;
 
-				let prop = DataStorage.getProperty(getScenarioDBPath(channel.id, freshScenario), "data");
-				if(!prop)
-					return undefined;
+				let prop = DataStorage.getProperty(getScenarioDBPath(channel.id, freshScenario.builder), "data");
+				if(!prop) return undefined;
 
 				return prop;
 			}
@@ -134,7 +137,7 @@ export class ScenarioManager {
 		this.pushScenario(channel.id, freshScenario);
 		
 		if(freshScenario.isPersistant && DataStorage) {
-			const dbPath = getScenarioDBPath(channel.id, freshScenario);
+			const dbPath = getScenarioDBPath(channel.id, freshScenario.builder);
 			let item = DataStorage.getItem(dbPath);
 			DataStorage.setItem(dbPath, item != undefined ? item : {});
 		}
@@ -150,7 +153,7 @@ export class ScenarioManager {
 		if(!channelScenarios?.length)
 			return undefined;
 
-		const foundScenario = channelScenarios.find(sce => sce.name == classParameter.name);
+		const foundScenario = channelScenarios.find(sce => sce.builder == classParameter);
 		return foundScenario;
 	}
 	

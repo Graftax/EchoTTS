@@ -14,7 +14,7 @@ export interface IScenario {
 	init() : void;
 	shutdown() : void;
 
-	get name(): string;
+	get builder(): IScenarioConstructor;
 	get isPersistant(): boolean;
 	get channel(): Channel;
 	get client(): Client;
@@ -40,7 +40,9 @@ export abstract class Scenario implements IScenario {
 		this.load = load;
 	}
 
-	abstract get name(): string;
+	get builder(): IScenarioConstructor {
+		return Object.getPrototypeOf(this).constructor as IScenarioConstructor;
+	}
 
 	init() : void {
 		
