@@ -21,23 +21,17 @@ interface UserSettings {
 	language: string
 }
 
-export function setGender(interaction: CommandInteraction) {
+export function updateSettingsFromInteraction(interaction: CommandInteraction) {
 
-	let option = interaction.options.get("gender", false)
-	if(!option?.value)
-		return;
+	DataStorage?.updateItem(`tts/${interaction.user.id}`, (payload) => {
 
-	DataStorage?.setProperty(`tts/${interaction.user.id}`, "gender", option.value);
+		const gendOption = interaction.options.get("gender", false);
+		if(gendOption?.value) payload["gender"] = gendOption.value;
 
-}
+		const langOption = interaction.options.get("language", false);
+		if(langOption?.value) payload["language"] = langOption.value;
 
-export function setLanguage(interaction: CommandInteraction) {
-
-	let option = interaction.options.get("language", false)
-	if(!option?.value)
-		return;                                                                                        
-
-	DataStorage?.setProperty(`tts/${interaction.user.id}`, "language", option.value);
+	});
 
 }
 
@@ -74,7 +68,7 @@ export default class TextToSpeech extends Scenario {
 		let prevConnection = DSVoice.getVoiceConnection(voiceChannel.guildId);
 		if(prevConnection){
 			console.warn(`Scenario failed: voice connection already in use in ${voiceChannel.name}`);
-			this.end();
+			this.controls.End();
 			return;
 		}
 
@@ -220,7 +214,7 @@ export default class TextToSpeech extends Scenario {
 	onVoiceStateUpdate = (oldState: VoiceState, newState: VoiceState) => {
 
 		if(this.didEveryoneLeave(oldState) || this.didWeLeave(oldState))
-			this.end();
+			this.controls.End();
 
 	}
 

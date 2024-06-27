@@ -81,7 +81,7 @@ type InteractionProcessor = (response: MessageComponentInteraction) => BaseMessa
 
 async function interactionLoop(response: InteractionResponse, onMessage: InteractionProcessor) {
 
-	let interaction = await response.awaitMessageComponent({componentType: ComponentType.Button});
+	let interaction = await response.awaitMessageComponent();
 	let newMessage = onMessage(interaction);
 
 	if(!newMessage)
@@ -146,7 +146,7 @@ function runSubcommandCreate(interaction: CommandInteraction) {
 	if(!hrsSpentVoting)
 		return;
 
-	let pollScenario = ScenarioManager?.getScenario(Poll<ShowOrMovie>, interaction.channel) as Poll<ShowOrMovie>;
+	let pollScenario = ScenarioManager?.getScenario(interaction.channel.id, Poll<ShowOrMovie>, ) as Poll<ShowOrMovie>;
 
 	// If a poll already exists, then do not create another.
 	if(pollScenario)
@@ -423,9 +423,11 @@ export default {
 		if(!interaction.channel)
 			return;
 
-		let pollScenario = ScenarioManager?.getScenario(Poll, interaction.channel) as Poll<ShowOrMovie>;
-		if(!pollScenario)
+		let pollScenario = ScenarioManager?.getScenario(interaction.channel.id, Poll) as Poll<ShowOrMovie>;
+		if(!pollScenario) {
 			interaction.respond([]);
+			return;
+		}
 
 		const focusedValue = interaction.options.getFocused() as string;
 		let list = pollScenario.getNomineeList().filter((value) => {
@@ -447,7 +449,7 @@ export default {
 		if(!interaction.isChatInputCommand())
 			return;
 
-		let pollScenario = ScenarioManager?.getScenario(Poll, interaction.channel) as Poll<ShowOrMovie>;
+		let pollScenario = ScenarioManager?.getScenario(interaction.channel.id, Poll) as Poll<ShowOrMovie>;
 		
 		if(interaction.options.getSubcommand() == "create" && !pollScenario)
 			return runSubcommandCreate(interaction);

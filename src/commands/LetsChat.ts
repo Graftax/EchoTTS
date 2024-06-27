@@ -13,11 +13,11 @@ export default {
 		if(!interaction.channel)
 			return;
 			
-		let chatScenario = ScenarioManager?.getScenario(Chatbot, interaction.channel) as Chatbot;
+		let chatScenario = ScenarioManager?.getScenario(interaction.channel.id, Chatbot) as Chatbot;
 
 		if(chatScenario) {
 
-			chatScenario.end();
+			ScenarioManager?.removeScenario(interaction.channel.id, Chatbot);
 			interaction.reply({content: "I'm leaving. 👋"});
 			return;
 

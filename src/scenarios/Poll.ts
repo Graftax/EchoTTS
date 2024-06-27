@@ -1,4 +1,4 @@
-import { Scenario, EndFunc, SaveFunc, LoadFunc } from "../Scenario.js";
+import { Scenario } from "../Scenario.js";
 import { Channel, Client, User } from "discord.js";
 import Lt from "long-timeout";
 import { off } from "process";
@@ -43,15 +43,32 @@ export default class Poll<ItemType extends Required<PollItem>> extends Scenario 
 
 	private _votes: Map<string, Array<string>> = new Map;
 
+	// #region Scenario
+
 	init(): void {
 
 		this.loadState();
-		this.saveState();
-
 		this.updateVoteTimeout();
 		this.updateEndTimeout();
 
 	}
+
+	shutdown() {
+	
+		if(this._voteTimeout)
+			Lt.clearTimeout(this._voteTimeout);
+
+		if(this._endTimeout)
+			Lt.clearTimeout(this._endTimeout);
+		
+		this.controls.Clean();
+	}
+
+	get isPersistant() {
+		return true;
+	}
+
+	// #endregion
 
 	configurePoll(creatorID: string, hoursBeforeVote: number, hoursVoting: number, nominationLimit: number) {
 
@@ -65,19 +82,6 @@ export default class Poll<ItemType extends Required<PollItem>> extends Scenario 
 		this.saveState();
 		this.updateVoteTimeout();
 		this.updateEndTimeout();
-	}
-
-	shutdown() {
-	
-		if(this._voteTimeout)
-			Lt.clearTimeout(this._voteTimeout);
-
-		if(this._endTimeout)
-			Lt.clearTimeout(this._endTimeout);
-	}
-
-	get isPersistant() {
-		return true;
 	}
 
 	isCreator(toCheck: User): boolean {
@@ -144,7 +148,7 @@ export default class Poll<ItemType extends Required<PollItem>> extends Scenario 
 
 		let channel = this.channel;
 		if(bordaCount.size <= 0 && channel.isTextBased()) {
-			this.end();
+			this.controls.End();
 			return channel.send("Could not tally a winner; there were no votes.");
 		}
 
@@ -185,12 +189,12 @@ export default class Poll<ItemType extends Required<PollItem>> extends Scenario 
 
 		}
 
-		this.end();
+		this.controls.End();
 	}
 
 	private saveState() {
 
-		this.save({
+		this.controls.Save({
 			nominationLimit: this._nominationLimit,
 			items: Object.fromEntries(this._nominees),
 			voteTime: this._voteTime.toISOString(),
@@ -204,9 +208,9 @@ export default class Poll<ItemType extends Required<PollItem>> extends Scenario 
 
 	private loadState() {
 
-		let state = this.load() as SaveState<ItemType>;
-		if(!state)
-			return;
+		let state = this.controls.Load() as SaveState<ItemType>;
+		if(!state) return;
+		if(Object.keys(state).length <= 0) return;
 
 		this._nominationLimit = state.nominationLimit;
 		this._nominees = new Map(Object.entries(state.items));

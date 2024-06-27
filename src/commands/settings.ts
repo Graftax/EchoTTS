@@ -1,6 +1,6 @@
 import { SlashCommandBuilder } from "discord.js";
 import { Command } from "../Commander.js";
-import { getSettings, setGender, setLanguage } from "../scenarios/texttospeech.js";
+import { getSettings, updateSettingsFromInteraction } from "../scenarios/texttospeech.js";
 
 let command = new SlashCommandBuilder();
 	command.setName('settings');
@@ -42,8 +42,7 @@ export default {
 	slashcommand: command,
 	async execute(interaction) {
 
-		setGender(interaction);
-		setLanguage(interaction);
+		updateSettingsFromInteraction(interaction);
 
 		let settingsString = "Your settings:\n" + JSON.stringify(getSettings(interaction.user.id), null, "\t");
 		interaction.reply({ content: settingsString, ephemeral: true });

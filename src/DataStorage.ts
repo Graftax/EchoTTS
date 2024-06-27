@@ -7,7 +7,7 @@ type ItemPayload = { [key: string] : PropValue };
 
 interface DataContainer {
 	version: number;
-	items: { [index: string]: ItemPayload };
+	items: { [index: string]: ItemPayload | undefined };
 }
 
 export default class DataStorage {
@@ -20,6 +20,20 @@ export default class DataStorage {
 		this.m_version = 2;
 		let defaultData: DataContainer = { version: this.m_version, items: {} };
 		JSONFilePreset(filepath, defaultData).then(db => this.m_db = db);
+
+	}
+
+	setItem(id: string, props: ItemPayload) {
+
+		this.m_db?.update(data => data.items[id] = props);
+
+	}
+
+	setProperty(id: string, propName: string, value: PropValue) {
+
+		let props = this.getItem(id) ?? {};
+		props[propName] = value;
+		this.setItem(id, props);
 
 	}
 
@@ -46,33 +60,20 @@ export default class DataStorage {
 		
 	}
 
-	setItem(id: string, props: ItemPayload) {
+	updateItem(id: string, updater: (item: ItemPayload) => void) {
 
-		this.m_db?.update(({ items }) => {
-
-			let currItem = items[id];
-			currItem = { ...currItem, ...props };
-			items[id] = currItem;
+		this.m_db?.update((data) => {
+			
+			let item = data.items[id];
+			if(item) updater(item);
 
 		});
-
-	}
-
-	setProperty(id: string, propName: string, value: PropValue) {
-
-		let prop: ItemPayload = {};
-		prop[propName] = value;
-		this.setItem(id, prop);
 
 	}
 
 	deleteItem(id: string) {
 
-		this.m_db?.update(({ items }) => {
-
-			delete items[id];
-
-		});
+		this.m_db?.update(data => delete data.items[id]);
 
 	}
 
@@ -82,7 +83,12 @@ export default class DataStorage {
 
 			let currItem = items[id];
 			if(!currItem) return;
-			delete currItem[propName];
+
+			if(Object.hasOwn(currItem, propName))
+				delete currItem[propName];
+
+			if(Object.keys(currItem).length <= 0)
+				delete items[id];
 
 		});
 
@@ -100,8 +106,9 @@ export default class DataStorage {
 
 		for(let currID of itemIDs) {
 
-			if(currID.startsWith(idFragment))
-				filtered.push([currID, this.m_db.data.items[currID]]);
+			let currItem = this.m_db.data.items[currID];
+			if(currID.startsWith(idFragment) && currItem)
+				filtered.push([currID, currItem]);
 
 		}
 
