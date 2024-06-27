@@ -54,7 +54,7 @@ export function getSettings(userID: string) : UserSettings {
 
 }
 
-export default class TextToSpeech extends Scenario {
+export default class SpeakForMeScenario extends Scenario {
 
 	private _connection: DSVoice.VoiceConnection | null = null;
 	private _subjects: Set<string> = new Set();

@@ -1,6 +1,6 @@
 import { SlashCommandBuilder } from "discord.js";
 import { Command } from "../Commander.js";
-import { getSettings, updateSettingsFromInteraction } from "../scenarios/texttospeech.js";
+import { getSettings, updateSettingsFromInteraction } from "../scenarios/SpeakForMeScenario.js";
 
 let command = new SlashCommandBuilder();
 	command.setName('settings');

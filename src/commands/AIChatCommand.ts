@@ -1,11 +1,11 @@
 import { PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import { Command } from "../Commander.js";
 import { Singleton as ScenarioManager } from "../ScenarioManager.js";
-import Chatbot from "../scenarios/Chatbot.js";
+import AIChatScenario from "../scenarios/AIChatScenario.js";
 
 export default {
 	slashcommand: new SlashCommandBuilder()
-		.setName('lets-chat')
+		.setName('ai-chat')
 		.setDescription('Echo will start text chatting in this channel.')
 		.setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
 	async execute(interaction) {
@@ -13,17 +13,17 @@ export default {
 		if(!interaction.channel)
 			return;
 			
-		let chatScenario = ScenarioManager?.getScenario(interaction.channel.id, Chatbot) as Chatbot;
+		let chatScenario = ScenarioManager?.getScenario(interaction.channel.id, AIChatScenario) as AIChatScenario;
 
 		if(chatScenario) {
 
-			ScenarioManager?.removeScenario(interaction.channel.id, Chatbot);
+			ScenarioManager?.removeScenario(interaction.channel.id, AIChatScenario);
 			interaction.reply({content: "I'm leaving. 👋"});
 			return;
 
 		}
 
-		ScenarioManager?.startScenario(Chatbot, interaction.channel);
+		ScenarioManager?.startScenario(AIChatScenario, interaction.channel);
 		interaction.reply({content: "I'm here to talk. 👍"});
 
 	}

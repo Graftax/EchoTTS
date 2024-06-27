@@ -27,7 +27,7 @@ interface SaveState<ItemType> {
 	votes: [string, string[]][]
 }
 
-export default class Poll<ItemType extends Required<PollItem>> extends Scenario {
+export default class PollScenario<ItemType extends Required<PollItem>> extends Scenario {
 
 	private _isVoting = false;
 	private _creatorID: string = "";

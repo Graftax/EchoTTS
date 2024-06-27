@@ -1,7 +1,7 @@
 import { Channel, SlashCommandBuilder, TextChannel } from "discord.js";
 import { Command } from "../Commander.js";
 import { Singleton as ScenarioManager } from "../ScenarioManager.js";
-import TextToSpeech from "../scenarios/texttospeech.js";
+import SpeakForMeScenario from "../scenarios/SpeakForMeScenario.js";
 
 function isTextChannel(channel: Channel): channel is TextChannel {
 	return channel.isTextBased();
@@ -26,7 +26,7 @@ export default {
 			return;
 		}
 
-		let ttsScenario = ScenarioManager?.startScenario(TextToSpeech, userVoiceState.channel) as TextToSpeech;
+		let ttsScenario = ScenarioManager?.startScenario(SpeakForMeScenario, userVoiceState.channel) as SpeakForMeScenario;
 		ttsScenario.addSubject(interaction.user.id);
 
 		let userVoiceChannel = userVoiceState.channel as Channel;

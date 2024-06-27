@@ -41,8 +41,10 @@ export class ScenarioManager {
 				for(let className in value) {
 
 					const foundConstructor = allScenarioTypes.find(currType => currType.name == className);
-					if(!foundConstructor)
-						return;
+					if(!foundConstructor) {
+						console.warn(`Could not find constructor for ${className}.`);
+						continue;
+					}
 
 					client.channels.fetch(currChannelID)
 						.then(channel => this.startScenario(foundConstructor, channel!))
