@@ -1,10 +1,10 @@
 import { ActionRowBuilder, BaseMessageOptions, ButtonBuilder, ButtonStyle, Channel, CommandInteraction, InteractionResponse, SlashCommandBuilder, MappedInteractionTypes, ComponentType, ButtonInteraction, ApplicationCommandOptionType } from "discord.js";
-import { Command } from "../Commander.js";
-import { Singleton as ScenarioManager } from "../ScenarioManager.js";
-import PollScenario, { PollItem } from "../scenarios/PollScenario.js";
-import IterativeSort from "../IterativeSort.js";
+import { ICommand } from "../Commander.js";
+import { Singleton as ScenarioManager } from "../../scenarios/ScenarioManager.js";
+import PollScenario, { PollItem } from "../../scenarios/indexable/PollScenario.js";
+import IterativeSort from "../../IterativeSort.js";
 import { MessageComponentInteraction } from "discord.js";
-import TVMazeProvider, { SearchResult } from "../TVMazeProvider.js";
+import TVMazeProvider, { SearchResult } from "../../TVMazeProvider.js";
 
 interface ShowOrMovie extends PollItem {
 
@@ -417,7 +417,7 @@ function runSubCommandEnd(interaction: CommandInteraction, pollScenario: PollSce
 //==============================================================================
 
 export default {
-	slashcommand: command,
+	slashCommand: command,
 	autocomplete(interaction) {
 
 		if(!interaction.channel)
@@ -480,4 +480,4 @@ export default {
 		}
 
 	}
-} as Command;
+} as ICommand;

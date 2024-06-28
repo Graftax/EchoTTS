@@ -1,5 +1,5 @@
 import { Channel, Client } from "discord.js";
-import { PropValue } from "./DataStorage.js";
+import { PropValue } from "../DataStorage.js";
 
 export type ScenarioControls = {
 

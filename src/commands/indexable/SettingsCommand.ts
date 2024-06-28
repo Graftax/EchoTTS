@@ -1,6 +1,6 @@
 import { SlashCommandBuilder } from "discord.js";
-import { Command } from "../Commander.js";
-import { getSettings, updateSettingsFromInteraction } from "../scenarios/SpeakForMeScenario.js";
+import { ICommand } from "../Commander.js";
+import { getSettings, updateSettingsFromInteraction } from "../../scenarios/indexable/SpeakForMeScenario.js";
 
 let command = new SlashCommandBuilder();
 	command.setName('settings');
@@ -39,7 +39,7 @@ let command = new SlashCommandBuilder();
 		)});
 
 export default {
-	slashcommand: command,
+	slashCommand: command,
 	async execute(interaction) {
 
 		updateSettingsFromInteraction(interaction);
@@ -47,4 +47,4 @@ export default {
 		let settingsString = "Your settings:\n" + JSON.stringify(getSettings(interaction.user.id), null, "\t");
 		interaction.reply({ content: settingsString, ephemeral: true });
 
-	}} as Command;
+	}} as ICommand;

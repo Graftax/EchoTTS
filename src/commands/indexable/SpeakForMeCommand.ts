@@ -1,14 +1,14 @@
 import { Channel, SlashCommandBuilder, TextChannel } from "discord.js";
-import { Command } from "../Commander.js";
-import { Singleton as ScenarioManager } from "../ScenarioManager.js";
-import SpeakForMeScenario from "../scenarios/SpeakForMeScenario.js";
+import { ICommand } from "../Commander.js";
+import { Singleton as ScenarioManager } from "../../scenarios/ScenarioManager.js";
+import SpeakForMeScenario from "../../scenarios/indexable/SpeakForMeScenario.js";
 
 function isTextChannel(channel: Channel): channel is TextChannel {
 	return channel.isTextBased();
 }
 
 export default {
-	slashcommand: new SlashCommandBuilder()
+	slashCommand: new SlashCommandBuilder()
 		.setName('speak-for-me')
 		.setDescription('Causes Echo to join the channel you are in.'),
 	async execute(interaction) {
@@ -39,4 +39,4 @@ export default {
 		}
 
 	}
-} as Command;
+} as ICommand;

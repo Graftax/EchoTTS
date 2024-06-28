@@ -1,8 +1,8 @@
 import { Channel, Client, CommandInteraction, Events, Message, VoiceChannel, VoiceState } from "discord.js";
 import * as DSVoice from '@discordjs/voice';
-import { createDiscordJSAdapter } from "../adapter.js";
+import { createDiscordJSAdapter } from "../../adapter.js";
 import { Scenario } from "../Scenario.js";
-import { Singleton as DataStorage } from "../DataStorage.js";
+import { Singleton as DataStorage } from "../../DataStorage.js";
 import { request } from 'https';
 import { Readable } from 'stream';
 

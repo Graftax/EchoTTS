@@ -1,10 +1,10 @@
 import { PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
-import { Command } from "../Commander.js";
-import { Singleton as ScenarioManager } from "../ScenarioManager.js";
-import AIChatScenario from "../scenarios/AIChatScenario.js";
+import { ICommand } from "../Commander.js";
+import { Singleton as ScenarioManager } from "../../scenarios/ScenarioManager.js";
+import AIChatScenario from "../../scenarios/indexable/AIChatScenario.js";
 
 export default {
-	slashcommand: new SlashCommandBuilder()
+	slashCommand: new SlashCommandBuilder()
 		.setName('ai-chat')
 		.setDescription('Echo will start text chatting in this channel.')
 		.setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
@@ -27,4 +27,4 @@ export default {
 		interaction.reply({content: "I'm here to talk. 👍"});
 
 	}
-} as Command;
+} as ICommand;

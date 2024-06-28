@@ -1,7 +1,7 @@
 import { BaseChannel, Channel, Client, Events } from "discord.js";
-import { Singleton as DataStorage } from "./DataStorage.js";
+import { Singleton as DataStorage } from "../DataStorage.js";
 import { Scenario, IScenarioConstructor, IScenario } from "./Scenario.js";
-import ScenarioIndex from "./index/scenarios.js";
+import ScenarioIndex from "../index/scenarios.js";
 
 export type ChannelID = typeof BaseChannel.prototype.id;
 

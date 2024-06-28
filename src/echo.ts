@@ -3,9 +3,9 @@ if (process.env.NODE_ENV !== 'production')
 	dotenv.config();
 
 import { Client, Events, GatewayIntentBits, Partials } from 'discord.js';
-import { Singleton as Commander } from './Commander.js';
+import { Singleton as Commander } from './commands/Commander.js';
 import { Create as CreateDataStorageManager } from './DataStorage.js';
-import { Create as CreateScenarioManager } from './ScenarioManager.js';
+import { Create as CreateScenarioManager } from './scenarios/ScenarioManager.js';
 import { Singleton as MovieDBProvider } from './MovieDBProvider.js';
 
 // Construct Core Classes
@@ -37,11 +37,8 @@ g_Client.on(Events.ClientReady, async () => {
 
 });
 
-g_Client.on(Events.InteractionCreate, async (interaction) => {
-	Commander.exec(interaction);
-});
-
-Commander.registerCommands();
+g_Client.on(Events.InteractionCreate, Commander.exec.bind(Commander));
+await Commander.registerCommands();
 
 // Start the client
 // =============================================================================
