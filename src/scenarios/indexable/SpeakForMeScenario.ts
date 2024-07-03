@@ -1,4 +1,4 @@
-import { Channel, Client, CommandInteraction, Events, Message, VoiceChannel, VoiceState } from "discord.js";
+import { Channel, Client, CommandInteraction, Events, Message, User, VoiceChannel, VoiceState } from "discord.js";
 import * as DSVoice from '@discordjs/voice';
 import { createDiscordJSAdapter } from "../../adapter.js";
 import { Scenario } from "../Scenario.js";
@@ -21,15 +21,12 @@ interface UserSettings {
 	language: string
 }
 
-export function updateSettingsFromInteraction(interaction: CommandInteraction) {
+export function updateSettings(user: User, gender: string | undefined, language: string | undefined) {
 
-	DataStorage?.updateItem(`tts/${interaction.user.id}`, (payload) => {
+	DataStorage?.updateItem(`tts/${user.id}`, (payload) => {
 
-		const gendOption = interaction.options.get("gender", false);
-		if(gendOption?.value) payload["gender"] = gendOption.value;
-
-		const langOption = interaction.options.get("language", false);
-		if(langOption?.value) payload["language"] = langOption.value;
+		if(gender) payload["gender"] = gender;
+		if(language) payload["language"] = language;
 
 	});
 

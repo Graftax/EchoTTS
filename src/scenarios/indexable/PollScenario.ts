@@ -3,7 +3,28 @@ import { Channel, Client, User } from "discord.js";
 import Lt from "long-timeout";
 import { off } from "process";
 
+export interface ShowOrMovie extends PollItem {}
+
 const hoursToMs = 3600000;
+
+function msToDurationString(durationMS: number): string {
+
+	let durationSecs = durationMS / 1000;
+	
+	let days = Math.floor(durationSecs / (24 * 60 * 60));
+	durationSecs = durationSecs % (24 * 60 * 60);
+
+	let hours = Math.floor(durationSecs / (60 * 60));
+	durationSecs = durationSecs % (60 * 60);
+
+	let minutes = Math.floor(durationSecs / 60);
+	let seconds = Math.floor(durationSecs % 60);
+
+	return `${days > 0 	? days + "d " 		: ""}`
+		+ `${hours > 0 		? hours + "h " 		: ""}`
+		+ `${minutes > 0 	? minutes + "m " 	: ""}`
+		+ `${seconds > 0 	? seconds + "s " 	: ""}`;
+}
 
 export interface PollItem {
 	uid: string;
@@ -100,6 +121,22 @@ export default class PollScenario<ItemType extends Required<PollItem>> extends S
 		return this._endTime;
 	}
 	
+	timeStatusString(): string {
+
+		let out = "";
+		let voteTime = this.getVoteTime();
+		let voteTimeOffsetMS = voteTime.getTime() - Date.now();
+		if(voteTimeOffsetMS > 0)
+			out += `\nTime Until Vote: ${msToDurationString(voteTimeOffsetMS)}`;
+		
+		let endTime = this.getEndTime();
+		let endTimeOffsetMs = endTime.getTime() - Math.max(voteTime.getTime(), Date.now());
+		if(endTimeOffsetMs > 0)
+			out += `\nVoting Time Left: ${msToDurationString(endTimeOffsetMs)}`;
+	
+		return out;
+	}
+
 	private async getMentionString() : Promise<string> {
 
 		let mentionSet = new Set<string>();

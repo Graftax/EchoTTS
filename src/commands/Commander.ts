@@ -1,38 +1,27 @@
 import { AutocompleteInteraction, Collection, CommandInteraction, Interaction, REST, Routes, SlashCommandBuilder } from "discord.js";
 import CommandIndex from "../index/commands.js";
-
-export interface ICommand {
-	get slashCommand(): SlashCommandBuilder,
-	execute: (interaction: CommandInteraction) => void,
-	autocomplete?: (interaction: AutocompleteInteraction) => void
-}
-
-// export class BaseCommand implements ICommand {
-
-// }
+import { Command } from "./Command.js";
 
 export default class Commander {
 
-	private m_commandMap: Collection<string, ICommand> = new Collection();
+	private m_commandMap: Collection<string, Command>;
 
 	constructor() {
 
-		for(const command of CommandIndex)
-			this.m_commandMap.set(command.slashCommand.name, command);
+		const commands: Command[] = Array.from(CommandIndex);
+		const mapEntries: [string, Command][] = commands.map(value => [value.name, value]);
+		this.m_commandMap = new Collection(mapEntries)
 
 	}
 
 	async registerCommands() {
 
-		let cmdJSON = [];
-		
-		for(let currCommand of this.m_commandMap.values())
-			cmdJSON.push(currCommand.slashCommand.toJSON());
+		let commandJSON = this.m_commandMap.map(value => value.toJSON());
 
-		const rest = new REST({version: '10'}).setToken(process.env.DISCORD_TOKEN ?? "");
+		const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN ?? "");
 
-		rest.put(Routes.applicationCommands(process.env.DISCORD_APPLICATION_ID ?? ""), {
-			body: cmdJSON
+		rest.post(Routes.applicationCommands(process.env.DISCORD_APPLICATION_ID ?? ""), {
+			body: commandJSON
 		}).then((value: any) => {
 
 			value.forEach((element: any) => {
@@ -40,37 +29,19 @@ export default class Commander {
 			});
 
 		});
-		
-	}
 
-	// Returns a list of command names.
-	getCommandList() {
-		return Array.from(this.m_commandMap.keys()).sort();
 	}
 
 	// Processes the text and runs the apropriate
-	exec(iaction: Interaction) : boolean {
+	exec(iaction: Interaction): boolean {
 
-		if(!iaction.isAutocomplete() && !iaction.isCommand())
-			return false;
+		if (!iaction.isCommand()) return false;
+
+		let currCmd = this.m_commandMap.get(iaction.commandName);
+		if (!currCmd) return false;
 
 		console.log(`Received command '${iaction.commandName}' from ${iaction.user.username}`);
-		let currCmd = this.m_commandMap.get(iaction.commandName);
-
-		if(!currCmd) {
-
-			if(iaction.isCommand())
-				iaction.reply("That is not a valid command.");
-
-			return false;
-		}
-
-		if(iaction.isAutocomplete() && currCmd.autocomplete)
-			currCmd.autocomplete(iaction);
-
-		if(iaction.isCommand())
-			currCmd.execute(iaction);
-
+		currCmd.receiveInteraction(iaction)
 		return true;
 
 	}

@@ -25,7 +25,6 @@ await MovieDBProvider.init();
 CreateDataStorageManager("db.json");
 CreateScenarioManager(g_Client);
 
-
 // Client event hooks
 // =============================================================================
 g_Client.on(Events.ClientReady, async () => {

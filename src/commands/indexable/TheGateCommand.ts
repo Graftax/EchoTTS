@@ -1,18 +1,15 @@
-import { CommandInteraction, SlashCommandBuilder } from "discord.js";
-import { ICommand } from "../Commander.js";
+import { PermissionFlagsBits } from "discord.js";
+import { Comex } from "../Comex.js";
+import { Command } from "../Command.js";
+import { DefaultMemberPermissionsCommandProperty } from "../CommandProperties.js";
 
-let command = new SlashCommandBuilder();
-command.setName("the-gate");
-command.setDescription("Login to, create, and manage instances of The Gate.");
-command.setDMPermission(false);
+const commandInstance = new Command("the-gate", "Beta", 
+	[DefaultMemberPermissionsCommandProperty(PermissionFlagsBits.ManageChannels)],
 
-export default {
-	slashCommand: command,
-	autocomplete(interaction) {
+	new Comex({}, ({}, interaction) => {
 
+	})
 
-	},
-	execute(interaction) {
+);
 
-	}
-} as ICommand;
+export default commandInstance;

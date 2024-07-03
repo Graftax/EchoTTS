@@ -4,7 +4,7 @@
 		{
 			"path": "src/commands/indexable/",
 			"file": "src/index/commands.ts",
-			"keyType": "ICommand"
+			"keyType": "Command"
 		},
 		{
 			"path": "src/scenarios/indexable/",
