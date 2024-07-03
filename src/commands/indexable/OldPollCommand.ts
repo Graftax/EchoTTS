@@ -37,32 +37,6 @@
 	
 // }
 
-// // list ========================================================================
-// command.addSubcommand((subCommand) => {
-// 	return subCommand.setName("list")
-// 		.setDescription("Lists the nominations.");
-// });
-
-// function runSubcommandList(interaction: CommandInteraction, pollScenario: PollScenario<ShowOrMovie>) {
-
-// 	let content = timeStatusString(pollScenario);
-	
-// 	content += `\nNominees:\n>>> `;
-
-// 	let items = pollScenario.getNomineeList();
-
-// 	for(let currItem of items) {
-
-// 		// TODO: Make these in to links, which means adding URLs to the poll itself.
-// 		content += `${currItem.name}\n`;
-// 	}
-
-// 	interaction.reply({
-// 		content: content
-// 	});
-	
-// }
-
 // // start vote ==================================================================
 // command.addSubcommand((subCommand) => {
 // 	return subCommand.setName("start")
