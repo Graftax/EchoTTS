@@ -1,4 +1,4 @@
-import { CommandInteraction, RESTPostAPIApplicationCommandsJSONBody, SlashCommandBuilder } from "discord.js";
+import { AutocompleteInteraction, CommandInteraction, RESTPostAPIApplicationCommandsJSONBody, SlashCommandBuilder } from "discord.js";
 import { IComex, INamedComex } from "./Comex.js";
 import { CommandPropertyFunc } from "./CommandProperties.js";
 
@@ -42,8 +42,6 @@ export class Command {
 		this._executions = exeutions;
 	}
 
-	// #region ICommand
-
 	get name() {
 		return this._name;
 	}
@@ -52,27 +50,22 @@ export class Command {
 		return this.createCommandBuilder().toJSON();
 	}
 
-	receiveInteraction(interaction: CommandInteraction) {
+	receiveInteraction(interaction: CommandInteraction | AutocompleteInteraction) {
 
 		let execution = this.selectExecution(interaction);
 		if(!execution)
 			return;
 
-		if(interaction.isAutocomplete()) {
-			execution.autocomplete?.call(execution, interaction);
-			return;
-		}
-
 		execution.execute(interaction);
 	}
 
-	// #endregion
-
-	selectExecution(interaction: CommandInteraction): IComex | undefined {
+	selectExecution(interaction: CommandInteraction | AutocompleteInteraction): IComex | undefined {
 
 		if(!Array.isArray(this._executions))
 			return this._executions;
-
+		
+		// We have to narrow the type
+ 		// https://www.reddit.com/r/Discordjs/comments/w3bhv0/interactionoptionsgetsubcommand_wont_work/
 		if(interaction.isChatInputCommand()) {
 		
 			let subCommand = interaction.options.getSubcommand();

@@ -35,7 +35,8 @@ export default class Commander {
 	// Processes the text and runs the apropriate
 	exec(iaction: Interaction): boolean {
 
-		if (!iaction.isCommand()) return false;
+		if(!iaction.isAutocomplete() && !iaction.isCommand())
+			return false;
 
 		let currCmd = this.m_commandMap.get(iaction.commandName);
 		if (!currCmd) return false;

@@ -15,9 +15,7 @@ type ComexExecutorFunc<Params extends ComexParameters> = (params: ComexParameter
 export interface IComex {
 
 	inscribe: (builder: SlashCommandCommonBuilder) => SlashCommandCommonBuilder;
-	execute: (interaction: CommandInteraction) => void;
-	autocomplete?: (interaction: AutocompleteInteraction, ...args: any[]) => void;
-
+	execute: (interaction: CommandInteraction | AutocompleteInteraction) => void;
 }
 
 export interface INamedComex extends IComex {
@@ -42,8 +40,16 @@ export class Comex<Params extends ComexParameters> implements IComex {
 		return builder;
 	}
 
-	execute(interaction: CommandInteraction): void {
+	execute(interaction: CommandInteraction | AutocompleteInteraction): void {
 		
+		if(interaction.isAutocomplete()) {
+
+			const focusedOption = interaction.options.getFocused(true);
+			this._params[focusedOption.name].autocomplete(interaction);
+			return;
+
+		}
+
 		let keys = Object.keys(this._params);
 		let res = Object.values(this._params);
 		let mapped = res.map(((param, index) => param.unpack(keys[index], interaction))) as ComexParameterTypes<Params>;
@@ -70,9 +76,8 @@ export class NamedComex<Params extends ComexParameters> extends Comex<Params> im
 	override inscribe(builder: SlashCommandCommonBuilder): SlashCommandCommonBuilder {
 
 			super.inscribe(builder);
-			builder.setDescription(this._description);
-			return builder.setName(this._name);
+			builder.setName(this._name);
+			return builder.setDescription(this._description);
 
 	}
-
 }

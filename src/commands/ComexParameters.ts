@@ -1,14 +1,24 @@
-import { ApplicationCommandOptionBase, CommandInteraction, SlashCommandBuilder, SlashCommandIntegerOption, SlashCommandMentionableOption, SlashCommandNumberOption, SlashCommandStringOption, SlashCommandSubcommandBuilder } from "discord.js";
-import { ComexParameterPropertyFunc, SlashCommandCommonBuilder } from "./ComexParameterProperties.js";
+import { ApplicationCommandOptionBase, ApplicationCommandOptionWithAutocompleteMixin, AutocompleteInteraction, CommandInteraction, SlashCommandBuilder, SlashCommandIntegerOption, SlashCommandMentionableOption, SlashCommandNumberOption, SlashCommandOptionsOnlyBuilder, SlashCommandStringOption, SlashCommandSubcommandBuilder } from "discord.js";
+import { SlashCommandCommonBuilder } from "./ComexParameterProperties.js";
+
+export type ComexParameterPropertyFunc<BuilderType> = (builder: BuilderType) => void;
+
+type AutoCompleteFunc<BuilderType> = BuilderType extends ApplicationCommandOptionWithAutocompleteMixin ? ((interaction: AutocompleteInteraction) => void) : never;
+
+function builderCanAutocomplete(builder: ApplicationCommandOptionBase): builder is ApplicationCommandOptionBase & ApplicationCommandOptionWithAutocompleteMixin {
+	return Object.hasOwn(builder, "setAutocomplete");
+}
 
 export interface IComexParameter<ValueType> {
 	inscribe(name: string, builder: SlashCommandCommonBuilder): void;
 	unpack(name: string, action: CommandInteraction): ValueType | undefined;
+	autocomplete(interaction: AutocompleteInteraction): void;
 }
 
 abstract class BaseComexParameter<BuilderType extends ApplicationCommandOptionBase, ValueType> implements IComexParameter<ValueType> {
 
 	private _properties;
+	private _autoComplete: AutoCompleteFunc<BuilderType> | undefined = undefined;
 
 	constructor(...properties: ComexParameterPropertyFunc<BuilderType>[]) {
 		this._properties = properties;
@@ -26,6 +36,9 @@ abstract class BaseComexParameter<BuilderType extends ApplicationCommandOptionBa
 			for(const prop of this._properties)
 				prop(builder);
 
+			if(this._autoComplete && builderCanAutocomplete(builder))
+				builder.setAutocomplete(true);
+
 			return builder;
 
 		});
@@ -36,12 +49,28 @@ abstract class BaseComexParameter<BuilderType extends ApplicationCommandOptionBa
 		return action.options.get(name)?.value as ValueType | undefined;
 	}
 
+	// Func is type never if parameter doesn't support autocomplete.
+	addAutocomplete(func: AutoCompleteFunc<BuilderType>) {
+		this._autoComplete = func;
+		return this;
+	}
+
+	autocomplete(interaction: AutocompleteInteraction): void {
+
+		if(!this._autoComplete) {
+			console.error("There was no autocomplete func.");
+			return;
+		}
+
+		this._autoComplete(interaction);
+	}
+
 }
 
 export class StringCommandParameter extends BaseComexParameter<SlashCommandStringOption, string> {
 
 	override createOption(builder: SlashCommandCommonBuilder, next: (builder: SlashCommandStringOption) => SlashCommandStringOption) {
-			builder.addStringOption(next);
+		builder.addStringOption(next);
 	}
 
 }
@@ -62,7 +91,7 @@ export class IntegerCommandParameter extends BaseComexParameter<SlashCommandInte
 
 }
 
-export class MentionableCommandParameter extends BaseComexParameter<SlashCommandMentionableOption, number> {
+export class MentionableCommandParameter extends BaseComexParameter<SlashCommandMentionableOption, string> {
 
 	override createOption(builder: SlashCommandCommonBuilder, next: (builder: SlashCommandMentionableOption) => SlashCommandMentionableOption) {
 		builder.addMentionableOption(next);
