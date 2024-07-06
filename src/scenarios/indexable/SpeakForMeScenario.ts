@@ -23,11 +23,10 @@ interface UserSettings {
 
 export function updateSettings(user: User, gender: string | undefined, language: string | undefined) {
 
-	DataStorage?.updateItem(`tts/${user.id}`, (payload) => {
-
-		if(gender) payload["gender"] = gender;
-		if(language) payload["language"] = language;
-
+	const defaults = getDefaultSettingsObject();
+	DataStorage?.setItem(`tts/${user.id}`, {
+		gender: gender ?? defaults.gender,
+		language: language ?? defaults.language
 	});
 
 }
