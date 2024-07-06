@@ -1,9 +1,30 @@
-import { Scenario, EndFunc, SaveFunc, LoadFunc } from "../Scenario.js";
-import { Channel, Client, User } from "discord.js";
+import { Scenario } from "../Scenario.js";
+import { Channel, Client, EmbedBuilder, User } from "discord.js";
 import Lt from "long-timeout";
 import { off } from "process";
 
+export interface ShowOrMovie extends PollItem {}
+
 const hoursToMs = 3600000;
+
+function msToDurationString(durationMS: number): string {
+
+	let durationSecs = durationMS / 1000;
+	
+	let days = Math.floor(durationSecs / (24 * 60 * 60));
+	durationSecs = durationSecs % (24 * 60 * 60);
+
+	let hours = Math.floor(durationSecs / (60 * 60));
+	durationSecs = durationSecs % (60 * 60);
+
+	let minutes = Math.floor(durationSecs / 60);
+	let seconds = Math.floor(durationSecs % 60);
+
+	return `${days > 0 	? days + "d " 		: ""}`
+		+ `${hours > 0 		? hours + "h " 		: ""}`
+		+ `${minutes > 0 	? minutes + "m " 	: ""}`
+		+ `${seconds > 0 	? seconds + "s " 	: ""}`;
+}
 
 export interface PollItem {
 	uid: string;
@@ -27,7 +48,7 @@ interface SaveState<ItemType> {
 	votes: [string, string[]][]
 }
 
-export default class Poll<ItemType extends Required<PollItem>> extends Scenario {
+export default class PollScenario<ItemType extends Required<PollItem>> extends Scenario {
 
 	private _isVoting = false;
 	private _creatorID: string = "";
@@ -43,15 +64,32 @@ export default class Poll<ItemType extends Required<PollItem>> extends Scenario 
 
 	private _votes: Map<string, Array<string>> = new Map;
 
+	// #region Scenario
+
 	init(): void {
 
 		this.loadState();
-		this.saveState();
-
 		this.updateVoteTimeout();
 		this.updateEndTimeout();
 
 	}
+
+	shutdown() {
+	
+		if(this._voteTimeout)
+			Lt.clearTimeout(this._voteTimeout);
+
+		if(this._endTimeout)
+			Lt.clearTimeout(this._endTimeout);
+		
+		this.controls.Clean();
+	}
+
+	get isPersistant() {
+		return true;
+	}
+
+	// #endregion
 
 	configurePoll(creatorID: string, hoursBeforeVote: number, hoursVoting: number, nominationLimit: number) {
 
@@ -65,19 +103,6 @@ export default class Poll<ItemType extends Required<PollItem>> extends Scenario 
 		this.saveState();
 		this.updateVoteTimeout();
 		this.updateEndTimeout();
-	}
-
-	shutdown() {
-	
-		if(this._voteTimeout)
-			Lt.clearTimeout(this._voteTimeout);
-
-		if(this._endTimeout)
-			Lt.clearTimeout(this._endTimeout);
-	}
-
-	get isPersistant() {
-		return true;
 	}
 
 	isCreator(toCheck: User): boolean {
@@ -96,6 +121,22 @@ export default class Poll<ItemType extends Required<PollItem>> extends Scenario 
 		return this._endTime;
 	}
 	
+	timeStatusString(): string {
+
+		let out = "";
+		let voteTime = this.getVoteTime();
+		let voteTimeOffsetMS = voteTime.getTime() - Date.now();
+		if(voteTimeOffsetMS > 0)
+			out += `\nTime Until Vote: ${msToDurationString(voteTimeOffsetMS)}`;
+		
+		let endTime = this.getEndTime();
+		let endTimeOffsetMs = endTime.getTime() - Math.max(voteTime.getTime(), Date.now());
+		if(endTimeOffsetMs > 0)
+			out += `\nVoting Time Left: ${msToDurationString(endTimeOffsetMs)}`;
+	
+		return out;
+	}
+
 	private async getMentionString() : Promise<string> {
 
 		let mentionSet = new Set<string>();
@@ -144,7 +185,7 @@ export default class Poll<ItemType extends Required<PollItem>> extends Scenario 
 
 		let channel = this.channel;
 		if(bordaCount.size <= 0 && channel.isTextBased()) {
-			this.end();
+			this.controls.End();
 			return channel.send("Could not tally a winner; there were no votes.");
 		}
 
@@ -177,20 +218,23 @@ export default class Poll<ItemType extends Required<PollItem>> extends Scenario 
 					description: `${winnerCount} Points (${winnerCount / maxPoints * 100}%)`,
 					image: { url: winner.item.img_url },
 					color: 0xd4af37
-				}, {
-					fields: fields,
-					color: 0xaaa9ad
-				}]
+				}, 
+				
+				new EmbedBuilder()
+					.setFields(fields)
+					.setColor(0xaaa9ad)
+					
+				]
 			});
 
 		}
 
-		this.end();
+		this.controls.End();
 	}
 
 	private saveState() {
 
-		this.save({
+		this.controls.Save({
 			nominationLimit: this._nominationLimit,
 			items: Object.fromEntries(this._nominees),
 			voteTime: this._voteTime.toISOString(),
@@ -204,9 +248,9 @@ export default class Poll<ItemType extends Required<PollItem>> extends Scenario 
 
 	private loadState() {
 
-		let state = this.load() as SaveState<ItemType>;
-		if(!state)
-			return;
+		let state = this.controls.Load() as SaveState<ItemType>;
+		if(!state) return;
+		if(Object.keys(state).length <= 0) return;
 
 		this._nominationLimit = state.nominationLimit;
 		this._nominees = new Map(Object.entries(state.items));

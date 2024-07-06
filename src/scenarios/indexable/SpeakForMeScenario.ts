@@ -1,8 +1,8 @@
-import { Channel, Client, CommandInteraction, Events, Message, VoiceChannel, VoiceState } from "discord.js";
+import { Channel, Client, CommandInteraction, Events, Message, User, VoiceChannel, VoiceState } from "discord.js";
 import * as DSVoice from '@discordjs/voice';
-import { createDiscordJSAdapter } from "../adapter.js";
+import { createDiscordJSAdapter } from "../../adapter.js";
 import { Scenario } from "../Scenario.js";
-import { Singleton as DataStorage } from "../DataStorage.js";
+import { Singleton as DataStorage } from "../../DataStorage.js";
 import { request } from 'https';
 import { Readable } from 'stream';
 
@@ -21,23 +21,13 @@ interface UserSettings {
 	language: string
 }
 
-export function setGender(interaction: CommandInteraction) {
+export function updateSettings(user: User, gender: string | undefined, language: string | undefined) {
 
-	let option = interaction.options.get("gender", false)
-	if(!option?.value)
-		return;
-
-	DataStorage?.setProperty(`tts/${interaction.user.id}`, "gender", option.value);
-
-}
-
-export function setLanguage(interaction: CommandInteraction) {
-
-	let option = interaction.options.get("language", false)
-	if(!option?.value)
-		return;                                                                                        
-
-	DataStorage?.setProperty(`tts/${interaction.user.id}`, "language", option.value);
+	const defaults = getDefaultSettingsObject();
+	DataStorage?.setItem(`tts/${user.id}`, {
+		gender: gender ?? defaults.gender,
+		language: language ?? defaults.language
+	});
 
 }
 
@@ -60,7 +50,7 @@ export function getSettings(userID: string) : UserSettings {
 
 }
 
-export default class TextToSpeech extends Scenario {
+export default class SpeakForMeScenario extends Scenario {
 
 	private _connection: DSVoice.VoiceConnection | null = null;
 	private _subjects: Set<string> = new Set();
@@ -74,7 +64,7 @@ export default class TextToSpeech extends Scenario {
 		let prevConnection = DSVoice.getVoiceConnection(voiceChannel.guildId);
 		if(prevConnection){
 			console.warn(`Scenario failed: voice connection already in use in ${voiceChannel.name}`);
-			this.end();
+			this.controls.End();
 			return;
 		}
 
@@ -220,7 +210,7 @@ export default class TextToSpeech extends Scenario {
 	onVoiceStateUpdate = (oldState: VoiceState, newState: VoiceState) => {
 
 		if(this.didEveryoneLeave(oldState) || this.didWeLeave(oldState))
-			this.end();
+			this.controls.End();
 
 	}
 

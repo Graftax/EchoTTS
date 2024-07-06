@@ -1,12 +1,17 @@
 import { Channel, Client } from "discord.js";
-import { PropValue } from "./DataStorage.js";
+import { PropValue } from "../DataStorage.js";
 
-export type EndFunc = () => void;
-export type SaveFunc = (p: PropValue) => void;
-export type LoadFunc = () => PropValue | undefined;
+export type ScenarioControls = {
 
-export interface IScenarioConstructor {
-	new (channel: Channel, client: Client, end: EndFunc, save: SaveFunc, load: LoadFunc) : IScenario;
+	End: () => void; 
+	Save: (p: PropValue) => void;
+	Load: () => PropValue | undefined;
+	Clean: () => void;
+
+}
+
+export type IScenarioConstructor = {
+	new (channel: Channel, client: Client, controls: ScenarioControls) : IScenario;
 }
 
 export interface IScenario {
@@ -25,19 +30,13 @@ export abstract class Scenario implements IScenario {
 
 	private _channel: Channel;
 	private _client: Client;
+	private _controls: ScenarioControls;
 
-	public end: EndFunc;
-	protected save: SaveFunc;
-	protected load: LoadFunc;
-
-	constructor(channel: Channel, client: Client, 
-		end: EndFunc, save: SaveFunc, load: LoadFunc)
+	constructor(channel: Channel, client: Client, controls: ScenarioControls)
 	{
 		this._channel = channel;
 		this._client = client;
-		this.end = end;
-		this.save = save;
-		this.load = load;
+		this._controls = controls;
 	}
 
 	get builder(): IScenarioConstructor {
@@ -64,5 +63,8 @@ export abstract class Scenario implements IScenario {
 		return this._client;
 	}
 
+	get controls(): ScenarioControls {
+		return this._controls;
+	}
 }
 

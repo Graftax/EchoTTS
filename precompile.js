@@ -55,8 +55,8 @@ fs.readFile("precompile.json", "utf-8").then((value) => {
 			fs.open(currIndex.file, "w").then(async (outFile) => {
 
 				await outFile.write(`// This is an auto-generated file. Do not edit.\n`);
-				await outFile.write(`import { Command } from "../Commander.js"\n`);
-				await outFile.write(`import { IScenarioConstructor } from "../Scenario.js"\n`);
+				await outFile.write(`import { Command } from "../commands/Command.js"\n`);
+				await outFile.write(`import { IScenarioConstructor } from "../scenarios/Scenario.js"\n`);
 				
 				for(let currImport of importList)
 					await outFile.write(`import ${currImport.name} from "${currImport.from}"\n`);

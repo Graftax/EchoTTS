@@ -2,12 +2,12 @@
 	"indexes": 
 	[
 		{
-			"path": "src/commands/",
+			"path": "src/commands/indexable/",
 			"file": "src/index/commands.ts",
 			"keyType": "Command"
 		},
 		{
-			"path": "src/scenarios/",
+			"path": "src/scenarios/indexable/",
 			"file": "src/index/scenarios.ts",
 			"keyType": "IScenarioConstructor"
 		}

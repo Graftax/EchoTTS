@@ -4,7 +4,7 @@ import fs from "fs";
 import OpenAI from 'openai';
 import { encodingForModel } from "js-tiktoken";
 
-export default class Chatbot extends Scenario {
+export default class AIChatScenario extends Scenario {
 
 	_openai = new OpenAI({
 		apiKey: process.env.OPENAI_API_KEY,
