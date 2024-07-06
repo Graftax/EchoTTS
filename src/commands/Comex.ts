@@ -52,8 +52,11 @@ export class Comex<Params extends ComexParameters> implements IComex {
 
 		let keys = Object.keys(this._params);
 		let res = Object.values(this._params);
-		let mapped = res.map(((param, index) => param.unpack(keys[index], interaction))) as ComexParameterTypes<Params>;
-		this._execute(mapped, interaction);
+
+		const keyValueList = res.map(((param, index) => [keys[index], param.unpack(keys[index], interaction)]));
+		const params = Object.fromEntries(keyValueList) as ComexParameterTypes<Params>;
+		
+		this._execute(params, interaction);
 
 	}
 }

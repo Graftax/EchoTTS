@@ -1,5 +1,5 @@
 import { Scenario } from "../Scenario.js";
-import { Channel, Client, User } from "discord.js";
+import { Channel, Client, EmbedBuilder, User } from "discord.js";
 import Lt from "long-timeout";
 import { off } from "process";
 
@@ -218,10 +218,13 @@ export default class PollScenario<ItemType extends Required<PollItem>> extends S
 					description: `${winnerCount} Points (${winnerCount / maxPoints * 100}%)`,
 					image: { url: winner.item.img_url },
 					color: 0xd4af37
-				}, {
-					fields: fields,
-					color: 0xaaa9ad
-				}]
+				}, 
+				
+				new EmbedBuilder()
+					.setFields(fields)
+					.setColor(0xaaa9ad)
+					
+				]
 			});
 
 		}

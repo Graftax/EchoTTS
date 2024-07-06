@@ -20,7 +20,7 @@ export default class Commander {
 
 		const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN ?? "");
 
-		rest.post(Routes.applicationCommands(process.env.DISCORD_APPLICATION_ID ?? ""), {
+		rest.put(Routes.applicationCommands(process.env.DISCORD_APPLICATION_ID ?? ""), {
 			body: commandJSON
 		}).then((value: any) => {
 
