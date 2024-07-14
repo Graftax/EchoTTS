@@ -2,8 +2,7 @@ import { Low } from 'lowdb';
 import { JSONFilePreset } from 'lowdb/node'
 
 export type PropValue = boolean|string|number|object;
-
-type ItemPayload = { [key: string] : PropValue };
+export type ItemPayload = { [key: string] : PropValue | undefined };
 
 interface DataContainer {
 	version: number;
