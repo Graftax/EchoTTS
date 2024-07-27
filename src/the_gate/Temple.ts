@@ -1,58 +1,61 @@
-import Daemon, { DaemonID } from "./Daemon.js";
+import { FixtureState, FixtureStateProvider } from "./Fixtures.js";
 import { PlayerID } from "./Player.js";
-import Room, {SaveState as RoomSaveState} from "./Room.js";
 
-export interface SaveState
-{
-	owner: PlayerID;
-	daemons: DaemonID[];
-	floors: { [key: number]: { [key: string]: RoomSaveState } };
+interface RoomSaveState {
+	name: string;
+	length: number;
+	width: number;
+	height: number;
+	contents: number[];
 }
 
-export default class Temple
-{
-	private _owner: PlayerID = "everyone";
-	private _daemons: Array<Daemon> = [];
-	private _floors: Map<number, Map<string, Room>> = new Map;
+export interface TempleState extends FixtureStateProvider {
+	rooms: { [key: number]: RoomSaveState };
+	floors: { [key: number]: number[] };
+}
 
-	public static ToState(temple: Temple) : SaveState {
+export interface TempleProvider {
+	temples: { [key: PlayerID]: TempleState };
+}
 
-		let mappedFloors = temple._floors.keys;
-		
-		return { 
-			owner: temple._owner, 
-			daemons: Daemon.ToIDList(temple._daemons),
-			floors: {}
-		};
+function getNextRoomID(state: TempleProvider, owner: PlayerID) {
 
-	}
+	let newID = 0;
+	let tempState = state.temples[owner];
+	if(!tempState) return newID;
 
-	public static FromState(state: SaveState) :  Temple {
+	while(Object.hasOwn(tempState.rooms, newID))
+		newID++;
 
-		return new Temple();
-	}
+	return newID;
+}
 
-	public static FromStateToPair(state: SaveState) : [PlayerID, Temple] {
+function Create(state: TempleProvider, owner: PlayerID) {
 
-		const temple = this.FromState(state);
-		return [temple._owner, temple];
-	}
+	state.temples[owner] = {
+		fixtures: {
+			0: {
+				id: 0,
+				name: "Extractor",
+				properties: {}
+			}
+		},
+		rooms: {
+			0: {
+				name: "Your Chamber",
+				length: 10,
+				width: 10,
+				height: 3,
+				contents: [ 0 ]
+			}
+		},
+		floors: {
+			0: [0]
+		}
+	};
 
-	public addDaemon(toAdd: Daemon) {
-		this._daemons.push(toAdd);
-	}
+}
 
-	public addRoom(roomName: string, floor: number = 1) {
-
-		let floorRooms = this._floors.get(floor) ?? new Map<string, Room>();
-
-		floorRooms.set(roomName, new Room());
-
-		this._floors.set(floor, floorRooms);
-
-	}
-
-	// public getRoom(roomName: string) {
-	// 	return this._floors.values().;
-	// }
+export default {
+	Create
 }

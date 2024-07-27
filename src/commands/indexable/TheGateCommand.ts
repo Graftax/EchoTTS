@@ -11,13 +11,13 @@ const commandInstance = new Command("the-gate", "Beta",
 
 	new Comex({}, ({}, interaction) => {
 
-		GateUniverse = new Universe();
-		GateUniverse.Start();
+		// GateUniverse = new Universe();
+		// GateUniverse.Start();
 
-		GateUniverse.debugAddTemple("everyone");
-		GateUniverse.debugAddDaemon("everyone", "Adam");
+		// GateUniverse.debugAddTemple("everyone");
+		// GateUniverse.debugAddDaemon("everyone", "Adam");
 
-		console.log(JSON.stringify(GateUniverse.ExportState()));
+		// console.log(JSON.stringify(GateUniverse.ExportState()));
 
 	})
 

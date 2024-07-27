@@ -22,6 +22,10 @@ export default class DataStorage {
 
 	}
 
+	ready() {
+		return this.m_db != null;
+	}
+
 	setItem(id: string, props: ItemPayload) {
 
 		this.m_db?.update(data => data.items[id] = props);
@@ -38,10 +42,7 @@ export default class DataStorage {
 
 	getItem(id: string) : ItemPayload | undefined {
 
-		if(!this.m_db)
-			return undefined;
-
-		return this.m_db.data.items[id];
+		return this.m_db?.data.items[id];
 
 	}
 
@@ -64,7 +65,8 @@ export default class DataStorage {
 		this.m_db?.update((data) => {
 			
 			let item = data.items[id];
-			if(item) updater(item);
+			if(!item) data.items[id] = (item = {});
+			updater(item);
 
 		});
 

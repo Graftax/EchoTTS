@@ -1,85 +1,35 @@
 import { clearInterval, setInterval } from "timers";
-import Daemon, {DaemonID, SaveState as DaemonSaveState} from "./Daemon.js";
-import Temple, {SaveState as TempleSaveState} from "./Temple.js";
+import Daemon, {DaemonID, DaemonProvider, DaemonState as DaemonSaveState} from "./Daemon.js";
+import Temple, {TempleProvider, TempleState as TempleSaveState} from "./Temple.js";
 import { PlayerID } from "./Player.js";
-import Room from "./Room.js";
 import {Singleton as DataStorage, ItemPayload, PropValue, Create as CreateDataStorageManager} from "../DataStorage.js";
+import { sleep } from "openai/core.mjs";
 
-interface SaveState extends ItemPayload
-{
-	daemons: DaemonSaveState[] | undefined;
-	temples: TempleSaveState[] | undefined;
-}
+type StateChanger = (state: UniverseState) => void;
 
-function externalUpdate(updateFunc: ((state: SaveState) => void) | undefined) {
-
-	DataStorage?.updateItem("test-instance-the-gate", (item: ItemPayload) => {
-
-		let state = item as SaveState;
-		
-		if(!state.daemons)
-			state.daemons = [];
-
-		if(!state.temples)
-			state.temples = [];
-
-	});
-
-}
-
-export default class Universe
-{
-
-	//private _updateFunc;
-
-	// These are our "pure" serialization collections.
-	private _daemons: Map<DaemonID, Daemon> = new Map;
-	private _temples: Map<PlayerID, Temple> = new Map;
-	private _daemonLocations: Map<Daemon, Room> = new Map;
+export interface UniverseState extends ItemPayload, DaemonProvider, TempleProvider {
 	
-	// These collections are the result of other data and are basically caches
-	private PlayerIdToOwnedDaemons: Map<PlayerID, Daemon[]> = new Map; 
+}
 
+export default class Universe {
+
+	private _updateFunc: (changer: StateChanger) => void;
 	private _tickTimeout: NodeJS.Timeout | null = null;
 
-	private _toggle: boolean = true;
-
-	public ExportState() : SaveState {
-
-		const daemons = Array.from(this._daemons.values());
-		const temples = Array.from(this._temples.values());
-
-		return { 
-			daemons: daemons.map(Daemon.ToState),
-			temples: temples.map(Temple.ToState)
-		};
-	}
-
-	public ImportState(state: SaveState) {
-
-		if(!state._daemons || !state._temples)
-			return;
-
-		//this._daemons = new Map(state.daemons.map(Daemon.FromStateToPair));
-		//this._temples = new Map(state.temples.map(Temple.FromStateToPair));
-	}
-
-	constructor() {
-		//this._updateFunc
+	constructor(updateFunc: (changer: StateChanger) => void) {
+		this._updateFunc = updateFunc;
 	}
 
 	public Start() {
-
-		this._tickTimeout = setInterval(this.Update.bind(this), 6000);
+		this._tickTimeout = setInterval(this.Update.bind(this), 1000);
 	}
 
 	private Update() {
 
-		console.log(this._toggle ? "TICK" : "TOCK");
-		this._toggle = !this._toggle;
+		this._updateFunc((state: UniverseState) => {
 
-		this._daemons.forEach((daemon) => {
-			daemon.tick();
+			Daemon.TickAll(state);
+
 		});
 
 	}
@@ -91,45 +41,50 @@ export default class Universe
 
 		this._tickTimeout = null;
 	}
-
-	public debugAddTemple(owner: PlayerID) {
-
-		let temple = new Temple();
-		this._temples.set(owner, temple);
-		return temple;
-
-	}
-
-	public debugAddDaemon(owner: PlayerID, id: DaemonID) {
-		const freshDaemon = new Daemon(id);
-		this._daemons.set(id, freshDaemon);
-		this._temples.get(owner)?.addDaemon(freshDaemon);
-	}
-
-	public debugMoveDaemonToRoom(toMove: DaemonID, templeOwner: PlayerID, roomName: string) {
-
-		const daemon = this._daemons.get(toMove);
-		if(!daemon) return;
-
-		const temple = this._temples.get(templeOwner);
-		if(!temple) return;
-
-		//const room = temple.getRoom(roomName);
-		//if(!room) return; 
-
-		//this._daemonLocations.set(daemon, room);
-	}
 }
 
+function externalUpdate(updateFunc: (state: UniverseState) => void) {
+
+	DataStorage?.updateItem("test-instance-the-gate", (item: ItemPayload) => {
+
+		let state = item as UniverseState;
+		
+		if(!state.daemons)
+			state.daemons = {};
+
+		if(!state.temples)
+			state.temples = {};
+
+		updateFunc(state);
+
+	});
+
+}
 
 CreateDataStorageManager("db.json");
 
-const GateUniverse = new Universe();
+while(!DataStorage?.ready()) {
+	await sleep(200);
+}
+
+externalUpdate((state) => {
+
+	state.daemons = {};
+	state.temples = {};
+
+});
+
+const GateUniverse = new Universe(externalUpdate);
 GateUniverse.Start();
 
-let everyTemple = GateUniverse.debugAddTemple("everyone");
-everyTemple.addRoom("Entry");
-GateUniverse.debugAddDaemon("everyone", "Adam");
+externalUpdate((state) => {
+	
+	Temple.Create(state, "Graftax");
+	let DID = Daemon.Create(state, "Graftax");
 
-console.log(JSON.stringify(GateUniverse.ExportState(), null, "  "));
-externalUpdate(undefined);
+	Daemon.PutInLocation(state, DID, {
+		temple: "Graftax",
+		roomNumber: 0
+	});
+
+});
