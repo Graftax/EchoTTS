@@ -1,6 +1,6 @@
 import { DaemonID, DaemonState } from "./Daemon.js";
 import { PlayerID } from "./Player.js";
-import { TempleState } from "./Temple.js";
+import { TempleProvider, TempleState } from "./Temple.js";
 import { UniverseState } from "./Universe.js";
 
 export type FixtureID = number;
@@ -9,6 +9,7 @@ export interface FixtureState {
 	id: FixtureID;
 	name: string;
 	properties: { [key: string]: any };
+	operator: DaemonID | null;
 }
 
 export interface FixtureStateProvider {
@@ -39,7 +40,23 @@ const FixtureDefinitions = [
 			count++;
 			
 			fixture.properties["count"] = count;
-			return count > 3;
+
+			if(count >= 3) {
+				fixture.properties["count"] = 0;
+				return false;
+			}
+
+			return true;
+		},
+	},
+	{
+		name: "Fountain",
+		getOperations: (state: FixtureState) => {
+			return ["[Absorb]"];
+		},
+		runOperation(state: UniverseState, temple: TempleState, fixture: FixtureState, operator: DaemonState, op: string) {
+			operator.energy = operator.maxEnergy;
+			return true;
 		},
 	}
 
@@ -49,7 +66,7 @@ function getDefinition(fixture: FixtureState) {
 	return FixtureDefinitions.find(value => value.name == fixture.name);
 }
 
-function getFixturesWithOperation(state: UniverseState, roomOwner: PlayerID, roomID: number, op: string): FixtureID[] {
+function getFixturesWithOperation(state: TempleProvider, roomOwner: PlayerID, roomID: number, op: string): FixtureID[] {
 
 	let result: FixtureID[] = [];
 
@@ -71,6 +88,20 @@ function getFixturesWithOperation(state: UniverseState, roomOwner: PlayerID, roo
 	return result;
 }
 
+function runOperation(state: UniverseState, templeOwner: PlayerID, toOperate: FixtureID, operator: DaemonID, op: string) {
+
+	let temple = state.temples[templeOwner];
+	let fixture = temple.fixtures[toOperate];
+	let fixDef = getDefinition(fixture);
+	let daemon = state.daemons[operator];
+
+	if(!fixDef)
+		return false;
+
+	return fixDef.runOperation(state, temple, fixture, daemon, op)
+}
+
 export default {
-	getFixturesWithOperation
+	getFixturesWithOperation,
+	runOperation
 };

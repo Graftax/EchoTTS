@@ -12,6 +12,7 @@ interface RoomSaveState {
 export interface TempleState extends FixtureStateProvider {
 	rooms: { [key: number]: RoomSaveState };
 	floors: { [key: number]: number[] };
+	resources: { [key: string]: number };
 }
 
 export interface TempleProvider {
@@ -37,7 +38,14 @@ function Create(state: TempleProvider, owner: PlayerID) {
 			0: {
 				id: 0,
 				name: "Extractor",
-				properties: {}
+				properties: {},
+				operator: null
+			},
+			1: {
+				id: 1,
+				name: "Fountain",
+				properties: {},
+				operator: null
 			}
 		},
 		rooms: {
@@ -46,12 +54,13 @@ function Create(state: TempleProvider, owner: PlayerID) {
 				length: 10,
 				width: 10,
 				height: 3,
-				contents: [ 0 ]
+				contents: [0, 1]
 			}
 		},
 		floors: {
 			0: [0]
-		}
+		},
+		resources: {}
 	};
 
 }

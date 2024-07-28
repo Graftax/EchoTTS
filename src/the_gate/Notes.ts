@@ -30,7 +30,7 @@ const Notes: Note[] = [
 
 		concept: (state: UniverseState, host: DaemonState) => {
 
-			if(host.energy > 5)
+			if(host.energy > host.maxEnergy * 0.1)
 				return;
 
 			return {
@@ -40,7 +40,19 @@ const Notes: Note[] = [
 		},
 
 		implement(state, host, order) {
+
+			if(!host.location || !host.location.temple)
 				return true;
+
+			const fixtureOptions = Fixtures.getFixturesWithOperation(state, 
+				host.location.temple, host.location.roomNumber, "[Absorb]");
+
+			if(fixtureOptions.length <= 0)
+				return true;
+
+			Fixtures.runOperation(state, host.location.temple, fixtureOptions[0], host.id, "[Absorb]");
+
+			return false;
 		},
 
 	},
@@ -76,14 +88,9 @@ const Notes: Note[] = [
 			if(!host.location?.temple)
 				return false;
 
-			let temple = state.temples[host.location.temple];
-			let fixture = temple.fixtures[order.properties["fixID"]];
-			
-			let count = fixture.properties["count"] || 0;
-			count++;
-			fixture.properties["count"] = count;
-
-			return count <= 5;
+			return Fixtures.runOperation(state, host.location.temple, 
+				order.properties["fixID"], host.owner, "[Sum]");
+				
 		},
 	}
 
@@ -106,7 +113,8 @@ function UpdateHost(state: UniverseState, host: DaemonState) {
 
 	conceptNote(state, host, note);
 
-	host.notesExhausted.push(note);
+	const index = Math.floor(Math.random() * host.notesExhausted.length);
+	host.notesExhausted.splice(index, 0, note);
 
 }
 

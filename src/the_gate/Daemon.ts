@@ -18,6 +18,7 @@ export interface DaemonState extends NoteProvider {
 	age: number;
 	location: DaemonLocation | null;
 	energy: number;
+	maxEnergy: number;
 	
 }
 
@@ -33,7 +34,8 @@ function Create(state: DaemonProvider, owner: PlayerID) {
 		owner: owner,
 		age: 0,
 		location: null,
-		energy: 50,
+		energy: 100,
+		maxEnergy: 100,
 		notesReserve: ["{Starvation}", "[Sum]"],
 		notesExhausted: [],
 		orders: []
