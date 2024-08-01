@@ -1,7 +1,7 @@
-import { DaemonID, DaemonState } from "../Daemon.js";
-import { Address, Location, LocationProvider } from "../Location.js";
-import { PlayerID } from "../Player.js";
-import { UniverseState } from "../Universe.js";
+import { DaemonID, DaemonState } from "./Daemon.js";
+import { Address, Location, LocationProvider } from "./Location.js";
+import { PlayerID } from "./Player.js";
+import { UniverseState } from "./Universe.js";
 
 export type FixtureID = number;
 

@@ -1,4 +1,4 @@
-import { Fixture, FixtureInteraction } from "../Fixtures/Fixture.js";
+import { Fixture, FixtureInteraction } from "../Fixture.js";
 import { Impulse } from "../Impulse.js";
 
 Impulse.RegisterImplement("imp-starve", {

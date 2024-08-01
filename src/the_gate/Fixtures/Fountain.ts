@@ -1,5 +1,5 @@
 
-import { Fixture, FixtureInteraction } from "./Fixture.js";
+import { Fixture, FixtureInteraction } from "../Fixture.js";
 
 Fixture.Register("fountain_1", {
 	name: "Fountain",

@@ -1,5 +1,5 @@
 import { DaemonContainer, DaemonID, DaemonState } from "./Daemon.js";
-import { FixtureStateProvider } from "./Fixtures/Fixture.js";
+import { FixtureStateProvider } from "./Fixture.js";
 
 export interface LocationProvider {
 	locations: Location[];

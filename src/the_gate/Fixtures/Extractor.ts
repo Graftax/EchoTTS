@@ -1,4 +1,4 @@
-import { Fixture, FixtureInteraction } from "./Fixture.js";
+import { Fixture, FixtureInteraction } from "../Fixture.js";
 
 Fixture.Register("extractor_1", {
 	name: "Jewel-mill",
