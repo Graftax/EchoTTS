@@ -1,14 +1,14 @@
 import { clearInterval, setInterval } from "timers";
-import Daemon, {DaemonID, DaemonProvider, DaemonState as DaemonSaveState} from "./Daemon.js";
-import Temple, {TempleProvider, TempleState as TempleSaveState} from "./Temple.js";
+import Daemon, { DaemonID, DaemonProvider, DaemonState as DaemonSaveState } from "./Daemon.js";
 import { PlayerID } from "./Player.js";
-import {Singleton as DataStorage, ItemPayload, PropValue, Create as CreateDataStorageManager} from "../DataStorage.js";
+import { Singleton as DataStorage, ItemPayload, PropValue, Create as CreateDataStorageManager } from "../DataStorage.js";
 import { sleep } from "openai/core.mjs";
+import { Location, LocationProvider } from "./Location.js";
 
 type StateChanger = (state: UniverseState) => void;
 
-export interface UniverseState extends ItemPayload, DaemonProvider, TempleProvider {
-	
+export interface UniverseState extends ItemPayload, DaemonProvider, LocationProvider {
+
 }
 
 export default class Universe {
@@ -36,7 +36,7 @@ export default class Universe {
 
 	public Stop() {
 
-		if(this._tickTimeout)
+		if (this._tickTimeout)
 			clearInterval(this._tickTimeout);
 
 		this._tickTimeout = null;
@@ -48,12 +48,15 @@ function externalUpdate(updateFunc: (state: UniverseState) => void) {
 	DataStorage?.updateItem("test-instance-the-gate", (item: ItemPayload) => {
 
 		let state = item as UniverseState;
-		
-		if(!state.daemons)
+
+		if (!state.daemons)
 			state.daemons = {};
 
-		if(!state.temples)
+		if (!state.temples)
 			state.temples = {};
+
+		if (!state.locations)
+			state.locations = [];
 
 		updateFunc(state);
 
@@ -63,7 +66,7 @@ function externalUpdate(updateFunc: (state: UniverseState) => void) {
 
 CreateDataStorageManager("db.json");
 
-while(!DataStorage?.ready()) {
+while (!DataStorage?.ready()) {
 	await sleep(200);
 }
 
@@ -71,6 +74,7 @@ externalUpdate((state) => {
 
 	state.daemons = {};
 	state.temples = {};
+	state.locations = [];
 
 });
 
@@ -78,13 +82,18 @@ const GateUniverse = new Universe(externalUpdate);
 GateUniverse.Start();
 
 externalUpdate((state) => {
-	
-	Temple.Create(state, "Graftax");
-	let DID = Daemon.Create(state, "Graftax");
 
-	Daemon.PutInLocation(state, DID, {
-		temple: "Graftax",
-		roomNumber: 0
-	});
+	let DID = Daemon.Create(state, "Graftax");
+	let daemon = Daemon.Get(state, DID);
+
+	let adrCity = Location.Create(state, "city_0", "Samel-buachas", undefined);
+	let adrTemples = Location.Create(state, "z_temple", "Temple Mountain", adrCity);
+	let adrGraftTemple = Location.Create(state, "tpl_graftax", "Graftax Temple", adrTemples);
+	let adrMainFloor = Location.Create(state, "flr_0", "Main Floor", adrGraftTemple);
+	let adrYourChamber = Location.Create(state, "rm_0", "Your Chamber", adrMainFloor);
+
+	Daemon.MoveTo(state, daemon, adrGraftTemple!);
+	Daemon.MoveTo(state, daemon, adrMainFloor!);
+	Daemon.MoveTo(state, daemon, adrYourChamber!);
 
 });

@@ -1,8 +1,9 @@
 import { PlayerID } from "./Player.js";
 import { randomUUID } from "crypto";
-import { TempleProvider } from "./Temple.js";
-import Notes, { NoteProvider } from "./Notes.js";
+import { Impulse, ImpulseDriver } from "./Impulse.js";
 import { UniverseState } from "./Universe.js";
+import { kill } from "process";
+import { Address, Locatable, Location, LocationProvider } from "./Location.js";
 
 export type DaemonID = string;
 
@@ -11,12 +12,11 @@ export interface DaemonLocation {
 	roomNumber: number;
 }
 
-export interface DaemonState extends NoteProvider {
+export interface DaemonState extends Locatable, ImpulseDriver {
 
 	id: DaemonID;
 	owner: PlayerID;
 	age: number;
-	location: DaemonLocation | null;
 	energy: number;
 	maxEnergy: number;
 	
@@ -24,6 +24,10 @@ export interface DaemonState extends NoteProvider {
 
 export interface DaemonProvider {
 	daemons: { [key: DaemonID]: DaemonState };
+}
+
+export interface DaemonContainer {
+	daemonHandles: DaemonID[];
 }
 
 function Create(state: DaemonProvider, owner: PlayerID) {
@@ -36,9 +40,7 @@ function Create(state: DaemonProvider, owner: PlayerID) {
 		location: null,
 		energy: 100,
 		maxEnergy: 100,
-		notesReserve: ["{Starvation}", "[Sum]"],
-		notesExhausted: [],
-		orders: []
+		...Impulse.DriverDefaults()
 	};
 
 	return newID;
@@ -46,44 +48,80 @@ function Create(state: DaemonProvider, owner: PlayerID) {
 
 function TickAll(state: UniverseState) {
 
-	Object.entries(state.daemons).forEach(entry => {
+	let killList: DaemonState[] = [];
 
-		const daemon = entry[1];
+	Object.entries(state.daemons).forEach(([daemonID, daemon]) => {
 		
 		if(daemon.location != null) {
 
-			Notes.UpdateHost(state, daemon);
+			Impulse.Drive(state, daemon);
 			daemon.energy--;
 
+		}
+
+		if(daemon.energy <= 0) {
+			killList.push(daemon);
 		}
 
 		daemon.age++;
 
 	});
 
+	killList.forEach(dState => Destroy(state, dState));
+	
 }
 
-function PutInLocation(state: DaemonProvider & TempleProvider, id: DaemonID, location: DaemonLocation) {
+function Destroy(state: DaemonProvider & LocationProvider, daemon: DaemonState) {
 
-	// Only support temples for now
-	if(!location.temple)
-		return;
+	RemoveFrom(state, daemon);
+	delete state.daemons[daemon.id];
 
-	// If the temple doesnt exist, bail
-	let templeState = state.temples[location.temple];
-	if(!templeState)
-		return;
+}
 
-	// If the room doesnt exist, bail
-	if(!Object.hasOwn(templeState.rooms, location.roomNumber))
-		return;
+function Get(state: DaemonProvider, id: DaemonID) {
+	return state.daemons[id];
+}
 
-	state.daemons[id].location = location;
+function MoveTo(map: LocationProvider, target: DaemonState, destination: Address) {
 
+	let location = Location.FromAddress(map, destination);
+	if(!location) return false;
+
+	RemoveFrom(map, target);
+
+	target.location = destination;
+	location.daemonHandles.push(target.id);
+	return true;
+
+}
+
+function RemoveFrom(map: LocationProvider, target: DaemonState) {
+
+	if(!target.location) return;
+
+	let currLocation = Location.FromAddress(map, target.location);
+	if(!currLocation) return;
+
+	currLocation.daemonHandles = currLocation.daemonHandles.filter(did => did != target.id);
+	target.location = null;
+
+}
+
+function GetAt(map: DaemonProvider & LocationProvider, destination: Address) {
+
+	let local = Location.FromAddress(map, destination);
+	if(!local) return [];
+
+	let daemons = local.daemonHandles.map(did => map.daemons[did]);
+	return daemons;
 }
 
 export default {
 	Create,
 	TickAll,
-	PutInLocation
+	Get,
+
+	MoveTo,
+	RemoveFrom,
+	GetAt
 };
