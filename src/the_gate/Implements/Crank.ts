@@ -1,11 +1,11 @@
 import { Fixture, FixtureInteraction } from "../Fixture.js";
-import { Impulse } from "../Impulse.js";
+import { ImplementDefinition, Impulse } from "../Impulse.js";
 import { Location } from "../Location.js";
 
-Impulse.RegisterImplement("imp-crank", {
+export default {
 	name: "Crank",
 	description: "Cranks a fixture in the room.",
-	implement(state, host, pulse) {
+	implementFunc(state, host, pulse) {
 		
 		if(!host.location) return false;
 
@@ -14,5 +14,5 @@ Impulse.RegisterImplement("imp-crank", {
 
 		return Fixture.Interact(state, host.location, fixtures[0], host, FixtureInteraction.Crank);
 
-	},
-});
+	}
+} as ImplementDefinition;

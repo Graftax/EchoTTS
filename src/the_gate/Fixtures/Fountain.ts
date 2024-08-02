@@ -1,7 +1,7 @@
 
-import { Fixture, FixtureInteraction } from "../Fixture.js";
+import { Fixture, FixtureDefinition, FixtureInteraction } from "../Fixture.js";
 
-Fixture.Register("fountain_1", {
+export default {
 	name: "Fountain",
 	getInteractions: (state) => {
 		return [FixtureInteraction.Siphon];
@@ -10,4 +10,4 @@ Fixture.Register("fountain_1", {
 		operator.energy = operator.maxEnergy;
 		return true;
 	}
-});
+} as FixtureDefinition;

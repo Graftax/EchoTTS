@@ -1,112 +1,125 @@
-import { DaemonID, DaemonState } from "./Daemon.js";
+import { DaemonState } from "./Daemon.js";
+import Crank from "./Implements/Crank.js";
+import Starvation from "./Implements/Starvation.js";
 import { UniverseState } from "./Universe.js";
 
-export interface ImpulseDriver {
+enum ConceptID {
+	NULL
+}
 
-	chargedImpulses: Impulse[];
-	pendingImpulses: Impulse[];
-	dischargedImpulses: Impulse[];
-	
+enum ImplementID {
+	Crank = "crank",
+	Starvation = "starve"
+}
+
+export interface ImpulseDriver {
+	impsFresh: Impulse[];
+	impsLiving: Impulse[];
+	impsSpent: Impulse[];
 }
 
 export interface Impulse {
-	concept?: string;
-	implement: string;
+	conceptID?: ConceptID;
+	implementID: ImplementID;
 	properties?: { [key: string]: any | undefined }
 }
 
-interface ConceptDefinition {
+export interface ConceptDefinition {
 	name: string;
 	description: string;
-	concept: (state: UniverseState, host: DaemonState, pulse: Impulse) => boolean;
+	conceptFunc: (state: UniverseState, host: DaemonState, pulse: Impulse) => boolean;
 }
 
-interface ImplementDefinition {
+export interface ImplementDefinition {
 	name: string;
 	description: string;
-	implement: (state: UniverseState, host: DaemonState, pulse: Impulse) => boolean;
+	implementFunc: (state: UniverseState, host: DaemonState, pulse: Impulse) => boolean;
 }
 
 let Definitions = {
-	concepts: new Map<string, ConceptDefinition>(),
-	implements: new Map<string, ImplementDefinition>()
+	concepts: new Map<ConceptID, ConceptDefinition>(),
+	implements: new Map<ImplementID, ImplementDefinition>()
 }
 
-function RegisterConcept(id: string, def: ConceptDefinition) {
+function RegisterConcept(id: ConceptID, def: ConceptDefinition) {
 	Definitions.concepts.set(id, def);
 }
 
-function RegisterImplement(id: string, def: ImplementDefinition) {
+function RegisterImplement(id: ImplementID, def: ImplementDefinition) {
 	Definitions.implements.set(id, def);
 }
+
+RegisterImplement(ImplementID.Starvation, Starvation);
+RegisterImplement(ImplementID.Crank, Crank);
 
 function DriverDefaults(): ImpulseDriver {
 
 	return {
-		chargedImpulses: [{implement: "imp-crank"}, {implement: "imp-starve"}],
-		pendingImpulses: [],
-		dischargedImpulses: []
+		impsFresh: [
+			{implementID: ImplementID.Crank}, 
+			{implementID: ImplementID.Starvation}],
+		impsLiving: [],
+		impsSpent: []
 	};
 
 }
 
 function Drive(state: UniverseState, host: DaemonState) {
 
-	if(ImplementOrders(state, host))
+	if(ImplementLiving(state, host))
 		return;
 
-	if(host.chargedImpulses.length <= 0) {
-		host.chargedImpulses = host.dischargedImpulses;
-		host.dischargedImpulses = [];
+	if(host.impsFresh.length <= 0) {
+		host.impsFresh = host.impsSpent;
+		host.impsSpent = [];
 	}
 
-	if(host.chargedImpulses.length <= 0)
+	if(host.impsFresh.length <= 0)
 		return;
 
-	let impulse = host.chargedImpulses.shift();
+	let impulse = host.impsFresh.shift();
 	if(!impulse) return;
 
-	RunImpulseConcept(state, host, impulse);
+	if(RunImpulseConcept(state, host, impulse)) {
+		host.impsLiving.push(impulse);
+		return;
+	}
 
-	const index = Math.floor(Math.random() * host.notesExhausted.length);
-	host.notesExhausted.splice(index, 0, impulse);
+	const index = Math.floor(Math.random() * host.impsSpent.length);
+	host.impsSpent.splice(index, 0, impulse);
 
 }
 
 function RunImpulseConcept(state: UniverseState, host: DaemonState, impulse: Impulse) {
 
-	let currNote = Definitions.find(note => note.name == name);
-	if(!currNote) return;
+	let concept = Definitions.concepts.get(impulse.conceptID ?? ConceptID.NULL);
+	if(concept && !concept.conceptFunc(state, host, impulse))
+		return false;
 
-	if(impulse.concept && Definitions.concepts)
-	let order = currNote.concept(state, host);
-	if(!order) return;
-
-	host.orders.unshift(order);
+	let implement = Definitions.implements.get(impulse.implementID);
+	return implement && implement.implementFunc(state, host, impulse);
 }
 
-function ImplementOrders(state: UniverseState, host: DaemonState) {
+// returns true if an implement was run.
+function ImplementLiving(state: UniverseState, host: DaemonState) {
 
-	if(host.pendingImpulses.length <= 0)
-		return false;
+	let pending = host.impsLiving.shift();
+	if(!pending) return false;
 
-	let pending = host.pendingImpulses[0];
-	let implement = Definitions.implements.get(pending.implement);
-	if(!implement) {
-		host.pendingImpulses.shift();
-		return false;
+	let implement = Definitions.implements.get(pending.implementID);
+	if(!implement) return false;
+
+	if(implement.implementFunc(state, host, pending)) {
+		host.impsLiving.unshift(pending);
+		return true;
 	}
-
-	if(!implement.implement(state, host, pending))
-		host.pendingImpulses.shift();
-
+	
+	host.impsSpent.push(pending);
 	return true;
 }
 
 
 export const Impulse = {
-	RegisterConcept,
-	RegisterImplement,
 	DriverDefaults,
 	Drive
 }

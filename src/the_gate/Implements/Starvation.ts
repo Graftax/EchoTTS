@@ -1,10 +1,10 @@
 import { Fixture, FixtureInteraction } from "../Fixture.js";
-import { Impulse } from "../Impulse.js";
+import { ImplementDefinition, Impulse } from "../Impulse.js";
 
-Impulse.RegisterImplement("imp-starve", {
+export default {
 	name: "Starvation",
 	description: "If energy is less than 10%, locks daemon in Siphon mode until charged.",
-	implement(state, host, pulse) {
+	implementFunc(state, host, pulse) {
 			
 		if(!host.location) return false;
 
@@ -17,4 +17,4 @@ Impulse.RegisterImplement("imp-starve", {
 		return Fixture.Interact(state, host.location, fixtures[0], host, FixtureInteraction.Siphon);
 
 	}
-})
+} as ImplementDefinition;

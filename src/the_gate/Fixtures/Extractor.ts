@@ -1,6 +1,6 @@
-import { Fixture, FixtureInteraction } from "../Fixture.js";
+import { Fixture, FixtureDefinition, FixtureInteraction } from "../Fixture.js";
 
-Fixture.Register("extractor_1", {
+export default {
 	name: "Jewel-mill",
 	getInteractions: (state) => {
 		return [FixtureInteraction.Crank];
@@ -19,5 +19,5 @@ Fixture.Register("extractor_1", {
 		}
 
 		return true;
-	},
-});
+	}
+} as FixtureDefinition;

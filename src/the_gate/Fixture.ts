@@ -1,4 +1,6 @@
 import { DaemonID, DaemonState } from "./Daemon.js";
+import Extractor from "./Fixtures/Extractor.js";
+import Fountain from "./Fixtures/Fountain.js";
 import { Address, Location, LocationProvider } from "./Location.js";
 import { PlayerID } from "./Player.js";
 import { UniverseState } from "./Universe.js";
@@ -7,7 +9,7 @@ export type FixtureID = number;
 
 export interface FixtureState {
 	id: FixtureID;
-	definition: string;
+	fixDefID: string;
 	name: string;
 	properties: { [key: string]: any };
 	operator: DaemonID | null;
@@ -58,17 +60,39 @@ function Register(id: string, definition: FixtureDefinition) {
 	Definitions[id] = definition;
 }
 
+Register("extractor_1", Extractor);
+Register("fountain_1", Fountain);
+
 function GetDefinition(fixture: FixtureState) {
-	return Definitions[fixture.definition];
+	return Definitions[fixture.fixDefID];
 }
 
-function Create(state: LocationProvider, where: Address) {
+function GetNextFixtureID(provider: FixtureStateProvider) {
 
+	
+
+}
+
+function Create(state: LocationProvider, where: Address, fixID: string) {
+
+	let local = Location.FromAddress(state, where);
+	if(!local) return;
+
+	let nextID = 0;
+	while(local.fixtures[nextID])
+		nextID++;
+
+	local.fixtures[nextID] = {
+		id: nextID,
+		fixDefID: fixID,
+		name: "",
+		properties: {},
+		operator: null
+	}
 }
 
 export const Fixture = {
-	Register,
-	GetDefinition,
+	Create,
 	WithInteraction,
 	Interact
 };

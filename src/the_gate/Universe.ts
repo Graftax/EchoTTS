@@ -4,6 +4,7 @@ import { PlayerID } from "./Player.js";
 import { Singleton as DataStorage, ItemPayload, PropValue, Create as CreateDataStorageManager } from "../DataStorage.js";
 import { sleep } from "openai/core.mjs";
 import { Location, LocationProvider } from "./Location.js";
+import { Fixture } from "./Fixture.js";
 
 type StateChanger = (state: UniverseState) => void;
 
@@ -95,5 +96,8 @@ externalUpdate((state) => {
 	Daemon.MoveTo(state, daemon, adrGraftTemple!);
 	Daemon.MoveTo(state, daemon, adrMainFloor!);
 	Daemon.MoveTo(state, daemon, adrYourChamber!);
+
+	Fixture.Create(state, adrYourChamber!, "fountain_1");
+	Fixture.Create(state, adrYourChamber!, "extractor_1");
 
 });
