@@ -1,4 +1,5 @@
 import { DaemonID, DaemonState } from "./Daemon.js";
+import { GetDefinition } from "./FixtureBinding.js";
 import Extractor from "./Fixtures/Extractor.js";
 import Fountain from "./Fixtures/Fountain.js";
 import { Address, Location, LocationProvider } from "./Location.js";
@@ -8,21 +9,17 @@ import { UniverseState } from "./Universe.js";
 export type FixtureID = number;
 
 export interface FixtureState {
-	id: FixtureID;
-	fixDefID: string;
-	name: string;
+	definition: string;
+	name?: string;
 	properties: { [key: string]: any };
-	operator: DaemonID | null;
 }
 
 export interface FixtureStateProvider {
 	fixtures: { [key: number]: FixtureState };
 }
 
-export interface FixtureDefinition {
-	name: string;
-	getInteractions: (state: FixtureState) => FixtureInteraction[];
-	interact: (state: UniverseState, where: Address, fixture: FixtureState, operator: DaemonState, intr: FixtureInteraction) => boolean;
+export interface FixtureAddress extends Address {
+	fixture: FixtureID
 }
 
 export enum FixtureInteraction {
@@ -39,7 +36,7 @@ function WithInteraction(state: LocationProvider, where: Address, intr: FixtureI
 	let fixEntries = Object.entries(loca.fixtures);
 	fixEntries.forEach(([id, fixState]) => {
 
-		if(GetDefinition(fixState).getInteractions(fixState).includes(intr))
+		if(GetDefinition(fixState)?.getInteractions(fixState).includes(intr))
 			result.push(fixState);
 
 	});
@@ -51,25 +48,13 @@ function Interact(state: UniverseState, where: Address,
 	fixture: FixtureState, operator: DaemonState, intr: FixtureInteraction) {
 
 	let fixDef = GetDefinition(fixture);
+	if(!fixDef) return false;
+
 	return fixDef.interact(state, where, fixture, operator, intr);
-}
 
-let Definitions: { [key: string]: FixtureDefinition } = {};
-
-function Register(id: string, definition: FixtureDefinition) {
-	Definitions[id] = definition;
-}
-
-Register("extractor_1", Extractor);
-Register("fountain_1", Fountain);
-
-function GetDefinition(fixture: FixtureState) {
-	return Definitions[fixture.fixDefID];
 }
 
 function GetNextFixtureID(provider: FixtureStateProvider) {
-
-	
 
 }
 
@@ -82,17 +67,33 @@ function Create(state: LocationProvider, where: Address, fixID: string) {
 	while(local.fixtures[nextID])
 		nextID++;
 
-	local.fixtures[nextID] = {
-		id: nextID,
-		fixDefID: fixID,
-		name: "",
-		properties: {},
-		operator: null
+	let fix = {
+		definition: fixID,
+		properties: {}
+	};
+
+	if(!GetDefinition(fix)) {
+		console.error(`Could not find definition for ${fixID}`);
+		return;
 	}
+
+	local.fixtures[nextID] = fix;
+}
+
+function FromAddress(map: LocationProvider, target: FixtureAddress) {
+	
+	let local = Location.FromAddress(map, target);
+	if(!local) return undefined;
+
+	if(!Object.hasOwn(local.fixtures, target.fixture))
+		return undefined;
+
+	return local.fixtures[target.fixture];
 }
 
 export const Fixture = {
 	Create,
 	WithInteraction,
-	Interact
+	Interact,
+	FromAddress
 };

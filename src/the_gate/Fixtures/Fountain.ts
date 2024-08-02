@@ -1,5 +1,6 @@
 
-import { Fixture, FixtureDefinition, FixtureInteraction } from "../Fixture.js";
+import { Fixture, FixtureInteraction } from "../Fixture.js";
+import { FixtureDefinition } from "../FixtureBinding.js";
 
 export default {
 	name: "Fountain",
@@ -7,7 +8,14 @@ export default {
 		return [FixtureInteraction.Siphon];
 	},
 	interact(state, where, fixture, operator, intr) {
-		operator.energy = operator.maxEnergy;
+		
+		operator.energy += 6;
+
+		if(operator.energy >= operator.maxEnergy) {
+			operator.energy = operator.maxEnergy;
+			return false;
+		}
+
 		return true;
 	}
 } as FixtureDefinition;

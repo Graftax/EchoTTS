@@ -1,4 +1,5 @@
-import { Fixture, FixtureDefinition, FixtureInteraction } from "../Fixture.js";
+import { FixtureInteraction } from "../Fixture.js";
+import { FixtureDefinition } from "../FixtureBinding.js";
 
 export default {
 	name: "Jewel-mill",

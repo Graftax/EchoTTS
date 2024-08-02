@@ -1,5 +1,6 @@
 import { Fixture, FixtureInteraction } from "../Fixture.js";
-import { ImplementDefinition, Impulse } from "../Impulse.js";
+import { ImplementDefinition } from "../ImplementBinding.js";
+import { Impulse } from "../Impulse.js";
 
 export default {
 	name: "Starvation",

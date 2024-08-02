@@ -97,7 +97,7 @@ externalUpdate((state) => {
 	Daemon.MoveTo(state, daemon, adrMainFloor!);
 	Daemon.MoveTo(state, daemon, adrYourChamber!);
 
-	Fixture.Create(state, adrYourChamber!, "fountain_1");
-	Fixture.Create(state, adrYourChamber!, "extractor_1");
+	Fixture.Create(state, adrYourChamber!, "fix_fount_1");
+	Fixture.Create(state, adrYourChamber!, "fix_extra_1");
 
 });
