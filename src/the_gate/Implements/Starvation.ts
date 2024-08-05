@@ -9,13 +9,30 @@ export default {
 			
 		if(!host.location) return false;
 
-		if(host.energy / host.maxEnergy >= 0.1)
-			return false;
+		let fixture = Fixture.GetReservation(state, host.location, host);
 
-		let fixtures = Fixture.WithInteraction(state, host.location, FixtureInteraction.Siphon);
-		if(fixtures.length <= 0) return true;
+		if(!fixture) {
 
-		return Fixture.Interact(state, host.location, fixtures[0], host, FixtureInteraction.Siphon);
+			if(host.energy / host.maxEnergy >= 0.1)
+				return false;
+
+			let fixtures = Fixture.WithInteraction(state, host.location, FixtureInteraction.Siphon);
+			if(fixtures.length <= 0) return true;
+
+			fixture = fixtures[0];
+
+		}
+
+		let live = Fixture.Interact(state, host.location, fixture, host, FixtureInteraction.Siphon);
+		if(live) {
+
+			Fixture.Reserve(state, { parts: host.location.parts, fixture: fixture.id }, host);
+			return true;
+
+		}
+
+		Fixture.ClearReservation(state, host.location, host);
+		return false;
 
 	}
 } as ImplementDefinition;

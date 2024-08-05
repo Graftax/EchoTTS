@@ -53,9 +53,6 @@ function externalUpdate(updateFunc: (state: UniverseState) => void) {
 		if (!state.daemons)
 			state.daemons = {};
 
-		if (!state.temples)
-			state.temples = {};
-
 		if (!state.locations)
 			state.locations = [];
 
@@ -74,7 +71,6 @@ while (!DataStorage?.ready()) {
 externalUpdate((state) => {
 
 	state.daemons = {};
-	state.temples = {};
 	state.locations = [];
 
 });

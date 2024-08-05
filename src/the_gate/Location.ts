@@ -1,5 +1,5 @@
 import { DaemonContainer, DaemonID, DaemonState } from "./Daemon.js";
-import { FixtureStateProvider } from "./Fixture.js";
+import { Fixture, FixtureStateProvider } from "./Fixture.js";
 
 export interface LocationProvider {
 	locations: Location[];
@@ -38,8 +38,8 @@ function Create(map: LocationProvider, id: string, name: string, parent: Address
 		id: id,
 		name: name,
 		daemonHandles: [],
-		fixtures: {},
-		locations: []
+		locations: [],
+		...Fixture.GetDefaultProvider()
 	});
 
 	return { parts: addressParts } as Address;

@@ -9,6 +9,7 @@ import { UniverseState } from "./Universe.js";
 export type FixtureID = number;
 
 export interface FixtureState {
+	id: FixtureID;
 	definition: string;
 	name?: string;
 	properties: { [key: string]: any };
@@ -16,6 +17,7 @@ export interface FixtureState {
 
 export interface FixtureStateProvider {
 	fixtures: { [key: number]: FixtureState };
+	reservations: { [key: DaemonID]: FixtureID };
 }
 
 export interface FixtureAddress extends Address {
@@ -68,6 +70,7 @@ function Create(state: LocationProvider, where: Address, fixID: string) {
 		nextID++;
 
 	let fix = {
+		id: nextID,
 		definition: fixID,
 		properties: {}
 	};
@@ -91,9 +94,59 @@ function FromAddress(map: LocationProvider, target: FixtureAddress) {
 	return local.fixtures[target.fixture];
 }
 
+function GetDefaultProvider() {
+	return {
+		fixtures: {},
+		reservations: {}
+	} as FixtureStateProvider;
+}
+
+
+function Reserve(provider: LocationProvider, address: FixtureAddress, daemon: DaemonState) {
+
+	let fixLocal = Location.FromAddress(provider, address);
+	if(!fixLocal) return false;
+
+	if(Object.hasOwn(fixLocal.reservations, daemon.id))
+		return false;
+
+	let fix = Fixture.FromAddress(provider, address);
+	if(!fix) return false;
+
+	fixLocal.reservations[daemon.id] = fix.id;
+	return true;
+}
+
+function GetReservation(provider: LocationProvider, address: Address, daemon: DaemonState) {
+
+	let local = Location.FromAddress(provider, address);
+	if(!local) return undefined;
+
+	if(!Object.hasOwn(local.reservations, daemon.id))
+		return undefined;
+
+	return local.fixtures[local.reservations[daemon.id]];
+
+}
+
+function ClearReservation(provider: LocationProvider, address: Address, daemon: DaemonState) {
+
+	let local = Location.FromAddress(provider, address);
+	if(!local) return;
+
+	if(!Object.hasOwn(local.reservations, daemon.id))
+		return;
+
+	delete local.reservations[daemon.id];
+}
+
 export const Fixture = {
+	GetDefaultProvider,
 	Create,
 	WithInteraction,
 	Interact,
-	FromAddress
+	FromAddress,
+	Reserve,
+	GetReservation,
+	ClearReservation
 };

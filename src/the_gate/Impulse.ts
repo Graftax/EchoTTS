@@ -1,8 +1,9 @@
 import { DaemonState } from "./Daemon.js";
-import { FixtureAddress } from "./Fixture.js";
+import { FixtureAddress, FixtureState } from "./Fixture.js";
 import { GetImplementDefinition } from "./ImplementBinding.js";
 import Crank from "./Implements/Crank.js";
 import Starvation from "./Implements/Starvation.js";
+import { Address } from "./Location.js";
 import { UniverseState } from "./Universe.js";
 
 export interface ImpulseDriver {
@@ -18,7 +19,6 @@ export interface ImpulseDriver {
 export interface Impulse {
 	conceptID?: string;
 	implementID: string;
-	fixtureTarget?: FixtureAddress;
 }
 
 export interface ConceptDefinition {
@@ -26,8 +26,6 @@ export interface ConceptDefinition {
 	description: string;
 	conceptFunc: (state: UniverseState, host: DaemonState, pulse: Impulse) => boolean;
 }
-
-
 
 let Definitions = {
 	concepts: new Map<string, ConceptDefinition>(),
@@ -106,7 +104,6 @@ function ImplementLiving(state: UniverseState, host: DaemonState) {
 	host.impulses.spent.push(pending);
 	return true;
 }
-
 
 export const Impulse = {
 	DriverDefaults,
