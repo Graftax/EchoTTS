@@ -4,6 +4,7 @@ import { Impulse, ImpulseDriver } from "./Impulse.js";
 import { UniverseState } from "./Universe.js";
 import { kill } from "process";
 import { Address, Locatable, Location, LocationProvider } from "./Location.js";
+import { Fixture } from "./Fixture.js";
 
 export type DaemonID = string;
 
@@ -38,7 +39,7 @@ function Create(state: DaemonProvider, owner: PlayerID) {
 		owner: owner,
 		age: 0,
 		location: null,
-		energy: 100,
+		energy: 20,
 		maxEnergy: 100,
 		...Impulse.DriverDefaults()
 	};
@@ -101,6 +102,8 @@ function RemoveFrom(map: LocationProvider, target: DaemonState) {
 
 	let currLocation = Location.FromAddress(map, target.location);
 	if(!currLocation) return;
+
+	Fixture.ClearReservation(map, target.location, target);
 
 	currLocation.daemonHandles = currLocation.daemonHandles.filter(did => did != target.id);
 	target.location = null;

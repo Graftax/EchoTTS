@@ -10,10 +10,17 @@ export default {
 		
 		if(!host.location) return false;
 
-		let fixtures = Fixture.WithInteraction(state, host.location, FixtureInteraction.Crank);
-		if(fixtures.length <= 0) return false;
+		let fixture = Fixture.GetReservation(state, host.location, host);
+		if(!fixture) {
 
-		return Fixture.Interact(state, host.location, fixtures[0], host, FixtureInteraction.Crank);
+			let fixtures = Fixture.WithInteraction(state, host.location, FixtureInteraction.Crank);
+			if(fixtures.length <= 0) return false;
+
+			fixture = fixtures[0];
+
+		}
+
+		return Fixture.Interact(state, host.location, fixture, host, FixtureInteraction.Crank);
 
 	}
 } as ImplementDefinition;

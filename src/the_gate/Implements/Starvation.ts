@@ -10,7 +10,6 @@ export default {
 		if(!host.location) return false;
 
 		let fixture = Fixture.GetReservation(state, host.location, host);
-
 		if(!fixture) {
 
 			if(host.energy / host.maxEnergy >= 0.1)
@@ -23,16 +22,7 @@ export default {
 
 		}
 
-		let live = Fixture.Interact(state, host.location, fixture, host, FixtureInteraction.Siphon);
-		if(live) {
-
-			Fixture.Reserve(state, { parts: host.location.parts, fixture: fixture.id }, host);
-			return true;
-
-		}
-
-		Fixture.ClearReservation(state, host.location, host);
-		return false;
+		return Fixture.Interact(state, host.location, fixture, host, FixtureInteraction.Siphon);
 
 	}
 } as ImplementDefinition;

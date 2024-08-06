@@ -52,7 +52,13 @@ function Interact(state: UniverseState, where: Address,
 	let fixDef = GetDefinition(fixture);
 	if(!fixDef) return false;
 
-	return fixDef.interact(state, where, fixture, operator, intr);
+	if(fixDef.interact(state, where, fixture, operator, intr)) {
+		Reserve(state, { parts: where.parts, fixture: fixture.id }, operator);
+		return true;
+	}
+
+	ClearReservation(state, where, operator);
+	return false;
 
 }
 
@@ -146,7 +152,6 @@ export const Fixture = {
 	WithInteraction,
 	Interact,
 	FromAddress,
-	Reserve,
 	GetReservation,
 	ClearReservation
 };
