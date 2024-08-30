@@ -35,6 +35,13 @@ g_Client.on(Events.ClientReady, async () => {
 		afk: false
 	});
 
+	// Health server.
+	http.createServer(function (req, res) {
+		res.writeHead(200, { 'Content-Type': 'text/plain' });
+		res.write('OK');
+		res.end();
+	}).listen(3000);
+
 });
 
 g_Client.on(Events.InteractionCreate, Commander.exec.bind(Commander));
@@ -44,10 +51,5 @@ await Commander.registerCommands();
 // =============================================================================
 g_Client.login(process.env.DISCORD_TOKEN);
 
-// Health server.
-http.createServer(function (req, res) {
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.write('OK');
-  res.end();
-}).listen(3000);
+
 
