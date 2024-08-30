@@ -24,7 +24,8 @@
   "devDependencies": {
     "@types/long-timeout": "^0.1.0",
     "@types/lowdb": "^1.0.15",
-    "@types/node": "^18.19.39"
+    "@types/node": "^18.19.39",
+    "typescript": "^5.5.4"
   },
   "scripts": {
     "start": "node dist/echo.js",
