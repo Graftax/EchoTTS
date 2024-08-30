@@ -7,7 +7,6 @@ dist/
 
 # Config
 .env
-res/introduction.txt
 config.json
 users-db.json
 db.json
