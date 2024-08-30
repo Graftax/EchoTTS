@@ -7,6 +7,7 @@ import { Singleton as Commander } from './commands/Commander.js';
 import { Create as CreateDataStorageManager } from './DataStorage.js';
 import { Create as CreateScenarioManager } from './scenarios/ScenarioManager.js';
 import { Singleton as MovieDBProvider } from './MovieDBProvider.js';
+import http from 'http';
 
 // Construct Core Classes
 // =============================================================================
@@ -42,4 +43,11 @@ await Commander.registerCommands();
 // Start the client
 // =============================================================================
 g_Client.login(process.env.DISCORD_TOKEN);
+
+// Health server.
+http.createServer(function (req, res) {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.write('OK');
+  res.end();
+}).listen(80);
 
